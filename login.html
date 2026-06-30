@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INTEL SPECTRA | Secure Access Portal</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* NSG theme: golden yellow, red, modern black */
+            --primary-color: #FFD24A; /* golden yellow */
+            --primary-dark: #E07A00; /* deeper amber for gradient */
+            --accent-red: #E53935; /* NSG red accent */
+            --dark-bg: rgba(10, 10, 10, 0.86); /* modern black */
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #ffffff;
+            --text-secondary: #d0cfcf;
+            --text-muted: #b0a8a0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+            background-color: #0b0f14;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: url('/static/images/login_bg.png') no-repeat center center/cover;
+            background-size: cover;
+            filter: blur(2px) brightness(0.55);
+            transform: scale(1.03);
+            z-index: -2;
+        }
+
+        body::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%);
+            z-index: -1;
+        }
+
+        .login-container {
+            display: grid;
+            /* left: features panel (40%), right: login (flexible) */
+            grid-template-columns: 40% 1fr;
+            gap: 40px;
+            width: 100%;
+            max-width: none;
+            height: 100vh;
+            margin: 0;
+            align-items: stretch;
+        }
+
+        .welcome-panel {
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            /* make the left panel fill full height and visually attach to the viewport edge */
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            border-top-left-radius: 16px;
+            border-bottom-left-radius: 16px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            height: 100vh;
+            overflow: auto;
+        }
+
+        .brand-section {
+            margin-bottom: 40px;
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            justify-content: space-between;
+        }
+
+        .nsg-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nsg-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .team-logo {
+            width: 80px;
+            height: 80px;
+            filter: drop-shadow(0 0 6px rgba(0,0,0,0.6));
+        }
+        .brand-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-right .brand-title {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px rgba(255,210,74,0.28));
+        }
+
+        .brand-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 0 0 30px 0;
+            font-weight: 400;
+        }
+
+        .features-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(4px);
+        }
+
+        .feature-icon {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-top: 2px;
+        }
+
+        .feature-content h6 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .feature-content p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .login-box {
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            /* visually separate the right login box */
+            border-top-right-radius: 16px;
+            border-bottom-right-radius: 16px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            align-self: center; /* center vertically in the right column */
+            justify-self: center; /* center horizontally in the right column */
+            height: auto;
+            max-width: 560px;
+            width: min(92%, 560px);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: var(--text-primary);
+        }
+
+        .login-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 10px 16px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255,210,74,0.08);
+            color: var(--text-primary);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn-login {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #000;
+            transition: all 0.18s ease;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 30px rgba(255,210,74,0.18);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #ff6b6b;
+            display: none;
+        }
+
+        .security-notice {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .security-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                grid-template-columns: 1fr;
+                max-width: 400px;
+                margin: 20px;
+            }
+            .welcome-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <!-- Welcome Panel (left, 40%) -->
+    <div class="welcome-panel">
+        <div class="brand-section">
+            <div class="brand-row">
+                <div class="nsg-block">
+                    <img src="/static/images/nsg_logo.png" class="brand-logo" alt="NSG Logo">
+                    <div class="nsg-text">NATIONAL SECURITY GUARD ~INDIA</div>
+                </div>
+
+                <div class="brand-right">
+                    <img src="/static/images/team_logo.png" class="team-logo" alt="Team Logo">
+                    <h1 class="brand-title">INTEL SPECTRA</h1>
+                </div>
+            </div>
+
+            <p class="brand-subtitle">Advanced Surveillance & Threat Detection Platform</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-item">
+                <i class="bi bi-camera-video-fill feature-icon"></i>
+                <div class="feature-content">
+                    <h6>Multi-Source Streaming</h6>
+                    <p>RTSP, RTMP, HTTP, HLS & USB camera support with multi-feed management</p>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <i class="bi bi-person-check feature-icon"></i>
+                <div class="feature-content">
+                    <h6>Real-time Face Recognition</h6>
+                    <p>AI-powered facial recognition with configurable confidence thresholds</p>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <i class="bi bi-shield-check feature-icon"></i>
+                <div class="feature-content">
+                    <h6>AI Threat Detection</h6>
+                    <p>Weapon, fire, and suspicious activity detection with instant alerts</p>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <i class="bi bi-graph-up feature-icon"></i>
+                <div class="feature-content">
+                    <h6>Comprehensive Reporting</h6>
+                    <p>Automated logging, snapshot capture, and detailed incident reports</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Box (right) -->
+    <div class="login-box">
+        <div class="login-header">
+            <h3 class="login-title">Secure Access</h3>
+            <p class="login-subtitle">Enter your credentials to continue</p>
+        </div>
+
+        <div id="loginError" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="mb-4">
+                <label for="usernameInput" class="form-label">Username</label>
+                <input type="text" id="usernameInput" class="form-control" 
+                       placeholder="Enter your NSG ID" required autofocus>
+            </div>
+
+            <div class="mb-4">
+                <label for="passwordInput" class="form-label">Password</label>
+                <input type="password" id="passwordInput" class="form-control" 
+                       placeholder="Enter your secure key" required>
+            </div>
+
+            <button type="submit" class="btn-login">Sign In</button>
+        </form>
+
+        <div class="security-notice">
+            <p class="security-text">© 2024 INTEL SPECTRA • RESTRICTED ACCESS • NSG INDIA</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const username = document.getElementById('usernameInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+        const errorEl = document.getElementById('loginError');
+
+        // Clear previous errors
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+
+        // Basic validation
+        if (!username || !password) {
+            errorEl.textContent = 'Please enter both username and password';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        // Show loading state
+        const submitBtn = document.querySelector('.btn-login');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Authenticating...';
+        submitBtn.disabled = true;
+
+        fetch('/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken || ''
+            },
+            body: JSON.stringify({ username: username, password: password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Redirect to dashboard
+                window.location.href = data.redirect || '/';
+            } else {
+                errorEl.textContent = data.message || 'Authentication failed';
+                errorEl.style.display = 'block';
+                // Shake animation for error
+                errorEl.style.animation = 'shake 0.5s ease-in-out';
+                setTimeout(() => errorEl.style.animation = '', 500);
+            }
+        })
+        .catch(error => {
+            errorEl.textContent = 'Network error. Please try again.';
+            errorEl.style.display = 'block';
+        })
+        .finally(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+
+    // Add shake animation for errors
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+
+</body>
+</html>

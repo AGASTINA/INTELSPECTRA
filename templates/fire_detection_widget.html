@@ -1,0 +1,37 @@
+<!-- Fire Detection Control Panel -->
+<!-- Add this to your event.html template -->
+
+<div class="card mt-3" data-event-id="{{ event.id }}">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-fire"></i> Fire Detection
+            <span id="fire-detection-status" class="badge badge-secondary float-right">INACTIVE</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="form-group">
+            <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="fire-detection-toggle">
+                <label class="custom-control-label" for="fire-detection-toggle">
+                    Enable Fire Detection on All Cameras
+                </label>
+            </div>
+            <small class="form-text text-muted">
+                Real-time fire detection with instant alerts and voice notifications
+            </small>
+        </div>
+
+        <hr>
+
+        <h6>Recent Fire Alerts</h6>
+        <div id="fire-alerts-list" style="max-height: 300px; overflow-y: auto;">
+            <p class="text-muted text-center">No fire alerts</p>
+        </div>
+    </div>
+</div>
+
+<!-- Include Fire Detection JavaScript -->
+<script src="{% static 'js/fire-detection.js' %}"></script>
+
+<!-- Add Font Awesome for icons if not already included -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">

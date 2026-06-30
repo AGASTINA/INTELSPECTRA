@@ -1,0 +1,4633 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation Architecture - NSG India</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background: #111;
+            color: #e0e0e0;
+            font-family: "Poppins", sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .navbar {
+            background: #000;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            height: 60px;
+        }
+
+        .navbar-left, .navbar-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-logo {
+            height: 40px;
+            margin-right: 15px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 2fr 20px 1fr;
+            grid-template-rows: 1fr;
+            height: calc(100vh - 60px);
+            gap: 0;
+        }
+
+        /* Left section - Normal camera feeds */
+        .normal-feeds {
+            /* Layout changed to 3 rows that fit the left column exactly.
+               We use a 6-column grid and span columns so the first row
+               has 2 feeds (each span 3 columns) and the next two rows
+               have 3 feeds each (each span 2 columns). */
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            padding: 8px;
+            background: #111;
+            /* Allow internal vertical scrolling when there are more feeds than the 3 visible rows */
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 12px; /* space for add button */
+        }
+        
+        .normal-feeds::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .normal-feeds::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .normal-feeds::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        
+        .normal-feeds::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Middle scrollbar */
+        .scrollbar-divider {
+            background: #222;
+            cursor: ew-resize;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scrollbar-divider::before {
+            content: '';
+            width: 4px;
+            height: 40px;
+            background: #444;
+            border-radius: 2px;
+        }
+
+        /* Right section */
+        .right-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: #111;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .right-section::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .right-section::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .right-section::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        
+        .right-section::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Pinned screens removed — section kept in CSS in case it's needed later */
+        .pinned-screens {
+            display: none;
+        }
+
+        /* Occupancy map (right column) - split: 60% alerts, 40% map */
+        .occupancy-map-section {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* allow it to fill the right column height */
+            flex: 1 1 auto;
+            min-height: 0; /* allow children to scroll */
+        }
+
+        /* Camera feed styling */
+        .camera-feed {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            height: 100%;
+            width: 100%;
+        }
+
+        .camera-feed:hover {
+            border-color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+        }
+        
+        .camera-feed img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .camera-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10;
+        }
+
+        .pinned-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff9800;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 600;
+            z-index: 10;
+        }
+
+        .camera-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .camera-feed:hover .camera-controls {
+            opacity: 1;
+        }
+
+        .control-icon {
+            background: rgba(0,0,0,0.8);
+            border: none;
+            color: #f5f5f5;
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .control-icon:hover {
+            background: rgba(245,245,245,0.2);
+        }
+
+        .camera-placeholder {
+            text-align: center;
+            color: #666;
+        }
+
+        .add-camera-btn {
+            background: #2a2a2a;
+            border: 2px dashed #444;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-camera-btn:hover {
+            background: #333;
+            border-color: #f5f5f5;
+        }
+
+        .add-camera-btn i {
+            font-size: 48px;
+            color: #666;
+        }
+
+        /* Positioning for feeds: first two items (row 1) span 3 columns each => 2 feeds
+           items 3..8 span 2 columns each => 3 feeds per row for rows 2 and 3 */
+        .normal-feeds > .camera-feed:nth-child(1),
+        .normal-feeds > .camera-feed:nth-child(2) {
+            grid-column: span 3;
+            height: 100%;
+        }
+
+        .normal-feeds > .camera-feed:nth-child(n+3) {
+            grid-column: span 2;
+            height: 100%;
+        }
+
+        /* Occupancy map header */
+        .section-header {
+            background: #000;
+            padding: 10px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #f5f5f5;
+        }
+
+        .map-content {
+            /* map portion: ~40% of occupancy section via flex ratio */
+            flex: 4 1 0%;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #architecture-canvas {
+            width: 100%;
+            height: 100%;
+            background: #222;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            cursor: crosshair;
+        }
+
+        /* Alerts panel (above the 2D map) */
+        .alerts-panel {
+            background: linear-gradient(90deg, #0f0f0f, #111111);
+            padding: 8px 12px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .alerts-list {
+            /* alerts: ~60% of occupancy section via flex ratio */
+            flex: 6 1 0%;
+            overflow-y: auto;
+            padding: 8px 6px;
+            min-height: 0;
+        }
+
+        .alert-item {
+            background: #121212;
+            border: 1px solid #2a2a2a;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            color: #e8e8e8;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .alert-item.acknowledged {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .alert-level-critical { border-left: 4px solid #E53935; }
+        .alert-level-warning  { border-left: 4px solid #FFD24A; }
+        .alert-level-info     { border-left: 4px solid #4FC3F7; }
+
+        .alert-actions { display: flex; gap: 6px; }
+
+        .rotation-handle {
+            cursor: grab;
+        }
+
+        .rotation-handle:active {
+            cursor: grabbing;
+        }
+
+        .properties-panel-input {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 5px 8px;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        .properties-panel-input:focus {
+            border-color: #f5f5f5;
+            outline: none;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            display: flex;
+            gap: 8px;
+            z-index: 50;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #444;
+            color: #f5f5f5;
+            width: 35px;
+            height: 35px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(245, 245, 245, 0.2);
+        }
+
+        .grid-toggle {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #444;
+            color: #f5f5f5;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 50;
+        }
+
+        .grid-toggle:hover {
+            background: rgba(245, 245, 245, 0.2);
+        }
+
+        .snap-indicator {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #4caf50;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            z-index: 50;
+        }
+
+        .no-map-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 20px;
+        }
+
+        .no-map-icon {
+            font-size: 48px;
+            color: #444;
+            margin-bottom: 10px;
+        }
+
+        .create-map-btn {
+            background: #f5f5f5;
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+
+        .create-map-btn:hover {
+            background: #fff;
+            transform: translateY(-2px);
+        }
+
+        /* Modal styling - Simplified for compatibility */
+        .modal {
+            z-index: 9999 !important;
+        }
+        
+        .modal-backdrop {
+            z-index: 9998 !important;
+        }
+        
+        .modal-dialog {
+            z-index: 10000 !important;
+        }
+        
+        .modal-content {
+            background: #1a1a1a !important;
+            border: 1px solid #333 !important;
+            color: #e0e0e0 !important;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #333;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #333;
+        }
+
+        .form-control, .form-select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+        }
+
+        .form-control:focus {
+            background: #2a2a2a;
+            border-color: #f5f5f5;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn-close-white {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        .form-label {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #f5f5f5;
+            border: none;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #fff;
+        }
+
+        .btn-secondary {
+            background: #444;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+
+        .toolbar {
+            background: #000;
+            border-bottom: 1px solid #333;
+            padding: 8px 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tool-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #3a3a3a;
+            border-color: #f5f5f5;
+        }
+
+        .tool-btn.active {
+            background: #f5f5f5;
+            border-color: #f5f5f5;
+            color: #000;
+        }
+
+        .settings-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #f5f5f5;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+            margin-left: 15px;
+        }
+
+        .settings-btn:hover {
+            background: #3a3a3a;
+            border-color: #f5f5f5;
+        }
+
+        /* On/Off Button Styles */
+        .onoff-btn {
+            background: #333;
+            border: 2px solid #666;
+            color: #888;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .onoff-btn:hover {
+            border-color: #888;
+        }
+
+        .onoff-btn.active {
+            background: #4caf50;
+            border-color: #45a049;
+            color: #fff;
+        }
+
+        .onoff-label {
+            display: inline-block;
+        }
+
+        /* Feature Status Badge */
+        .feature-status-badge {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
+
+        .feature-status-badge.active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        /* Feature Toggle Button */
+        .feature-toggle-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #f5f5f5;
+            height: 40px;
+            padding: 0 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .feature-toggle-btn:hover {
+            background: #3a3a3a;
+            border-color: #f5f5f5;
+        }
+
+        .feature-toggle-btn.active {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: #4caf50;
+        }
+
+        .ai-models-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #f5f5f5;
+            height: 40px;
+            padding: 0 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-left: 15px;
+        }
+
+        .ai-models-btn:hover {
+            background: #3a3a3a;
+            border-color: #f5f5f5;
+        }
+
+        .ai-models-btn.active {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+
+        /* AI Models Sidebar */
+        .ai-models-sidebar {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 450px;
+            height: 100vh;
+            background: #1a1a1a;
+            border-left: 2px solid #333;
+            z-index: 2001;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .ai-models-sidebar.open {
+            right: 0;
+        }
+
+        .detection-card {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .detection-card.enabled {
+            border-left-color: #4caf50;
+        }
+
+        .detection-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .detection-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detection-icon {
+            width: 32px;
+            height: 32px;
+            background: #333;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .detection-description {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .detection-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .detection-stat {
+            background: #1a1a1a;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .detection-stat.active {
+            color: #4caf50;
+        }
+
+        .confidence-slider {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .confidence-value {
+            font-size: 12px;
+            color: #aaa;
+            text-align: right;
+        }
+
+        .ai-status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .ai-status-active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .ai-status-inactive {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+
+        /* Settings Sidebar */
+        .settings-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #1a1a1a;
+            border-left: 2px solid #333;
+            z-index: 2000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-sidebar.open {
+            right: 0;
+        }
+
+        .sidebar-header {
+            background: #000;
+            padding: 20px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #f5f5f5;
+        }
+
+        .sidebar-close {
+            background: transparent;
+            border: none;
+            color: #f5f5f5;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-close:hover {
+            color: #fff;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f5f5f5;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .settings-item {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-item-label {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #f5f5f5;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+            background-color: #000;
+        }
+
+        .settings-select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 150px;
+        }
+
+        .settings-select:focus {
+            border-color: #f5f5f5;
+            outline: none;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1999;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+        
+        /* When modal is open, lower overlay z-index */
+        body.modal-open .sidebar-overlay {
+            z-index: 1000 !important;
+        }
+
+        .settings-button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .settings-action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save {
+            background: #f5f5f5;
+            color: #000;
+        }
+
+        .btn-save:hover {
+            background: #fff;
+        }
+
+        .btn-reset {
+            background: #444;
+            color: #f5f5f5;
+        }
+
+        .btn-reset:hover {
+            background: #555;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        /* Notification System */
+        .notification-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .notification-overlay.show {
+            display: flex;
+        }
+
+        .notification-box {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease;
+            position: relative;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .notification-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .notification-icon.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .notification-icon.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .notification-icon.warning {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+
+        .notification-icon.info {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+        }
+
+        .notification-icon.confirm {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .notification-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #f5f5f5;
+            margin: 0;
+        }
+
+        .notification-message {
+            font-size: 14px;
+            color: #ccc;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .notification-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .notification-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .notification-btn.primary {
+            background: #f5f5f5;
+            color: #000;
+        }
+
+        .notification-btn.primary:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+        }
+
+        .notification-btn.secondary {
+            background: #444;
+            color: #f5f5f5;
+        }
+
+        .notification-btn.secondary:hover {
+            background: #555;
+        }
+
+        .notification-btn.danger {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .notification-btn.danger:hover {
+            background: #d32f2f;
+        }
+
+        /* Fullscreen Feed Modal */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .fullscreen-overlay.show {
+            display: flex;
+        }
+
+        .fullscreen-content {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            max-width: 1600px;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+            animation: zoomIn 0.3s ease;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .fullscreen-header {
+            background: #000;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+        }
+
+        .fullscreen-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fullscreen-close {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #444;
+            color: #f5f5f5;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .fullscreen-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .fullscreen-feed {
+            width: 100%;
+            height: calc(100% - 60px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        .fullscreen-feed img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .expand-btn {
+            position: absolute;
+            top: 10px;
+            right: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f5f5f5;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            z-index: 15;
+        }
+
+        .camera-feed:hover .expand-btn {
+            display: flex;
+        }
+
+        .expand-btn:hover {
+            background: rgba(245, 245, 245, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Detection Logs Sidebar */
+        .logs-sidebar {
+            position: fixed;
+            top: 60px;
+            right: -450px;
+            width: 450px;
+            height: calc(100vh - 60px);
+            background: #1a1a1a;
+            border-left: 2px solid #333;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s ease;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-sidebar.active {
+            right: 0;
+        }
+
+        .logs-sidebar-header {
+            background: #000;
+            padding: 15px 20px;
+            border-bottom: 2px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logs-sidebar-close {
+            background: transparent;
+            border: none;
+            color: #f5f5f5;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .logs-sidebar-close:hover {
+            background: rgba(245, 245, 245, 0.1);
+        }
+
+        .logs-filter-bar {
+            background: #111;
+            padding: 10px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .logs-filter-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logs-filter-btn:hover {
+            background: #333;
+            border-color: #f5f5f5;
+        }
+
+        .logs-filter-btn.active {
+            background: #f5f5f5;
+            color: #111;
+            border-color: #f5f5f5;
+        }
+
+        .logs-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .logs-action-btn {
+            background: transparent;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logs-action-btn:hover {
+            background: #333;
+        }
+
+        .logs-action-btn.danger:hover {
+            background: #dc3545;
+            border-color: #dc3545;
+            color: #fff;
+        }
+
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .logs-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .log-card {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .log-card:hover {
+            border-color: #f5f5f5;
+            box-shadow: 0 2px 8px rgba(245, 245, 245, 0.1);
+        }
+
+        .log-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .log-type-badge {
+            background: #444;
+            color: #f5f5f5;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .log-type-badge.face {
+            background: #0d6efd;
+        }
+
+        .log-type-badge.object {
+            background: #198754;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .log-snapshot {
+            width: 100%;
+            height: 150px;
+            border-radius: 6px;
+            object-fit: cover;
+            margin-bottom: 8px;
+            border: 1px solid #333;
+        }
+
+        .log-details {
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .log-label {
+            font-weight: 600;
+            color: #f5f5f5;
+            margin-bottom: 4px;
+        }
+
+        .log-info {
+            display: flex;
+            justify-content: space-between;
+            color: #888;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .log-delete-btn {
+            background: transparent;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .log-delete-btn:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .logs-empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+        }
+
+        .logs-empty i {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .logs-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .logs-btn:hover {
+            background: #333;
+            border-color: #f5f5f5;
+        }
+
+        .logs-btn i {
+            font-size: 16px;
+        }
+
+        .logs-badge {
+            background: #dc3545;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+
+<body data-event-id="{{ event.id }}">
+
+    <!-- Fullscreen Feed Overlay -->
+    <div class="fullscreen-overlay" id="fullscreenOverlay" onclick="closeFullscreen(event)">
+        <div class="fullscreen-content" onclick="event.stopPropagation()">
+            <div class="fullscreen-header">
+                <div class="fullscreen-title">
+                    <i class="bi bi-camera-video-fill"></i>
+                    <span id="fullscreenCameraName">Camera Feed</span>
+                </div>
+                <button class="fullscreen-close" onclick="closeFullscreen()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="fullscreen-feed" id="fullscreenFeedContainer">
+                <img id="fullscreenFeedImage" src="" alt="Camera Feed">
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Overlay -->
+    <div class="notification-overlay" id="notificationOverlay">
+        <div class="notification-box" id="notificationBox">
+            <div class="notification-header">
+                <div class="notification-icon" id="notificationIcon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <h3 class="notification-title" id="notificationTitle">Notification</h3>
+            </div>
+            <p class="notification-message" id="notificationMessage">This is a notification message.</p>
+            <div class="notification-buttons" id="notificationButtons">
+                <button class="notification-btn primary" onclick="closeNotification()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-left">
+            <a href="{% url 'home' %}" style="text-decoration: none; color: inherit;">
+                <i class="bi bi-arrow-left me-2"></i>
+            </a>
+            <img src="{% static 'images/nsg_logo.png' %}" alt="Team Logo" class="navbar-logo">
+            <span class="h5 mb-0 text-light">{{ event.event_name }}</span>
+        </div>
+
+        <div class="navbar-right">            
+            <!-- Face Recognition Button with Toggle -->
+            <div class="d-flex align-items-center gap-2">
+                <button class="ai-models-btn" onclick="navigateToFaceRecognition(event)" title="Face Recognition">
+                    <i class="bi bi-person-check"></i> Face Recognition
+                </button>
+                <button class="feature-toggle-btn" id="faceRecToggle" onclick="toggleFaceRecognition(event)" title="Toggle Face Recognition">
+                    <span class="feature-status-badge" id="faceRecStatus">OFF</span>
+                </button>
+            </div>
+
+            <!-- Object Detection Button with Toggle -->
+            <div class="d-flex align-items-center gap-2">
+                <button class="ai-models-btn" onclick="navigateToObjectDetection(event)" title="Object Detection">
+                    <i class="bi bi-box-seam"></i> Object Detection
+                </button>
+                <button class="feature-toggle-btn" id="objectDetToggle" onclick="toggleObjectDetection(event)" title="Toggle Object Detection">
+                    <span class="feature-status-badge" id="objectDetStatus">OFF</span>
+                </button>
+            </div>
+            
+            <button class="ai-models-btn" onclick="toggleAIModels()" title="AI Detection Models">
+                <i class="bi bi-cpu"></i> AI Models
+                <span class="ai-status-badge ai-status-inactive" id="aiStatusBadge">0 Active</span>
+            </button>
+            
+            <!-- Detection Logs Button -->
+            <button class="logs-btn" onclick="toggleLogsSidebar()" title="Detection Logs">
+                <i class="bi bi-clock-history"></i> Logs
+                <span class="logs-badge" id="logsBadge" style="display: none;">0</span>
+            </button>
+            
+            <button class="settings-btn" onclick="toggleSettings()" title="Settings">
+                <i class="bi bi-gear-fill"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Detection Logs Sidebar -->
+    <div class="logs-sidebar" id="logsSidebar">
+        <div class="logs-sidebar-header">
+            <div class="logs-sidebar-title">
+                <i class="bi bi-clock-history"></i>
+                Detection Logs
+            </div>
+            <button class="logs-sidebar-close" onclick="toggleLogsSidebar()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        
+        <div class="logs-filter-bar">
+            <button class="logs-filter-btn active" data-type="all" onclick="filterLogs('all')">All</button>
+            <button class="logs-filter-btn" data-type="face" onclick="filterLogs('face')">Face</button>
+            <button class="logs-filter-btn" data-type="object" onclick="filterLogs('object')">Object</button>
+            
+            <div class="logs-actions">
+                <button class="logs-action-btn" onclick="showReportModal()" title="Generate Report">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                </button>
+                <button class="logs-action-btn danger" onclick="clearAllLogs()" title="Clear All Logs">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="logs-container" id="logsContainer">
+            <div class="logs-empty">
+                <i class="bi bi-inbox"></i>
+                <p>No detection logs yet</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        
+        <!-- Left Section: Normal Camera Feeds (2x3 grid) -->
+        <div class="normal-feeds">
+            {% for camera in normal_cameras %}
+            <div class="camera-feed">
+                {% if camera %}
+                    <div class="camera-label">{{ camera.camera_name }}</div>
+                    <button class="expand-btn" onclick="expandFeed('{{ camera.camera_name }}', '{% url 'video_feed' camera.id %}')" title="Expand"
+                        data-action="expand" data-camera-name="{{ camera.camera_name }}" data-feed-url="{% url 'video_feed' camera.id %}">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <div class="camera-controls">
+                        <button class="control-icon" onclick="pinCamera({{ camera.id }})" title="Pin" data-action="pin" data-camera-id="{{ camera.id }}">
+                            <i class="bi bi-pin-angle"></i>
+                        </button>
+                        <button class="control-icon" onclick="removeCamera({{ camera.id }})" title="Remove" data-action="remove" data-camera-id="{{ camera.id }}">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <img src="{% url 'video_feed' camera.id %}" style="width: 100%; height: 100%; object-fit: cover;" alt="{{ camera.camera_name }}">
+                {% else %}
+                    <div class="camera-label">Empty Slot {{ forloop.counter }}</div>
+                    <div class="camera-placeholder">
+                        <i class="bi bi-camera-video-off" style="font-size: 48px; color: #444;"></i>
+                        <p>No Signal</p>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="add-camera-btn" data-bs-toggle="modal" data-bs-target="#addCameraModal">
+                <div style="text-align: center;">
+                    <i class="bi bi-plus-circle"></i>
+                    <p style="margin-top: 10px; font-weight: 600;">Add Feed</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle: Scrollbar/Divider -->
+        <div class="scrollbar-divider"></div>
+
+        <!-- Right Section -->
+        <div class="right-section">
+            <!-- Pinned feeds removed by request (no pinned feeds) -->
+
+            <!-- Occupancy Map Space -->
+            <div class="occupancy-map-section" style="background: #000; border: 2px solid #333;">
+                <!-- Alerts / Messages box (above the 2D map) -->
+                <div class="section-header">
+                    <div class="section-title"><i class="bi bi-bell-fill"></i> Alerts &amp; Messages</div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-light" onclick="ackAllAlerts()">Acknowledge All</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearAlerts()">Clear</button>
+                    </div>
+                </div>
+
+                <div id="alertsContainer" class="alerts-list" aria-live="polite"></div>
+
+                <!-- 2D occupancy / architecture map -->
+                <div class="map-content">
+                    <canvas id="architecture-canvas"></canvas>
+                </div>
+            </div>
+
+            <script>
+                // Alerts management functions for the Alerts & Messages box
+                function addAlert(id, level, message) {
+                    const container = document.getElementById('alertsContainer');
+                    if (!container) return;
+                    const empty = container.querySelector('.alerts-empty');
+                    if (empty) empty.remove();
+                    const div = document.createElement('div');
+                    div.className = 'alert-item alert-level-' + (level || 'info');
+                    div.dataset.alertId = id || Date.now();
+                    div.innerHTML = '<div class="alert-text">' + (message || '') + '</div>' +
+                                    '<div class="alert-actions">' +
+                                      '<button class="btn btn-sm btn-success" onclick="ackAlert(this)">Ack</button>' +
+                                      '<button class="btn btn-sm btn-outline-light" onclick="removeAlert(this)">Dismiss</button>' +
+                                    '</div>';
+                    container.prepend(div);
+                }
+
+                function ackAlert(btn) {
+                    const item = btn.closest('.alert-item');
+                    if (!item) return;
+                    item.classList.add('acknowledged');
+                }
+
+                function removeAlert(btn) {
+                    const item = btn.closest('.alert-item');
+                    if (!item) return;
+                    item.remove();
+                    const container = document.getElementById('alertsContainer');
+                    if (!container.querySelector('.alert-item')) {
+                        container.innerHTML = '<div class="alerts-empty text-muted">No alerts</div>';
+                    }
+                }
+
+                function clearAlerts() {
+                    const container = document.getElementById('alertsContainer');
+                    if (!container) return;
+                    container.innerHTML = '<div class="alerts-empty text-muted">No alerts</div>';
+                }
+
+                function ackAllAlerts() {
+                    document.querySelectorAll('#alertsContainer .alert-item').forEach(i => i.classList.add('acknowledged'));
+                }
+                // ensure placeholder when no alerts
+                document.addEventListener('DOMContentLoaded', function() {
+                    const c = document.getElementById('alertsContainer');
+                    if (!c) return;
+                    if (!c.querySelector('.alert-item') && !c.querySelector('.alerts-empty')) {
+                        c.innerHTML = '<div class="alerts-empty text-muted">No alerts</div>';
+                    }
+                });
+            </script>
+        </div>
+
+    </div>
+
+    <!-- Settings Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeAllSidebars()"></div>
+
+    <!-- AI Models Sidebar -->
+    <div class="ai-models-sidebar" id="aiModelsSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <i class="bi bi-cpu"></i> AI Detection Models
+            </div>
+            <button class="sidebar-close" onclick="toggleAIModels()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- AI Detection Controls -->
+            <div id="aiDetectionList" style="padding: 12px 16px;">
+                <!-- Weapon Detection -->
+                <div class="detection-card" data-model-type="weapon" id="card-weapon">
+                    <div class="detection-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-shield-shaded" style="color:#dc3545"></i>
+                            <strong>Weapon Detection</strong>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-weapon">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="detection-card-body">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="min-width:120px">Confidence</span>
+                            <input type="range" id="conf-weapon" min="0" max="1" step="0.05" value="0.5" style="flex:1">
+                            <span id="conf-weapon-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fire Detection -->
+                <div class="detection-card" data-model-type="fire" id="card-fire">
+                    <div class="detection-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-fire" style="color:#fd7e14"></i>
+                            <strong>Fire Detection</strong>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-fire">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="detection-card-body">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="min-width:120px">Confidence</span>
+                            <input type="range" id="conf-fire" min="0" max="1" step="0.05" value="0.5" style="flex:1">
+                            <span id="conf-fire-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Detection -->
+                <div class="detection-card" data-model-type="vehicle" id="card-vehicle">
+                    <div class="detection-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-car-front-fill" style="color:#0d6efd"></i>
+                            <strong>Vehicle Detection</strong>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-vehicle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="detection-card-body">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="min-width:120px">Confidence</span>
+                            <input type="range" id="conf-vehicle" min="0" max="1" step="0.05" value="0.5" style="flex:1">
+                            <span id="conf-vehicle-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suspicious Behaviour Detection -->
+                <div class="detection-card" data-model-type="suspicious" id="card-suspicious">
+                    <div class="detection-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-exclamation-diamond-fill" style="color:#6f42c1"></i>
+                            <strong>Suspicious Behaviour</strong>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-suspicious">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="detection-card-body">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="min-width:120px">Confidence</span>
+                            <input type="range" id="conf-suspicious" min="0" max="1" step="0.05" value="0.5" style="flex:1">
+                            <span id="conf-suspicious-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Face Hiding / Masked Detection -->
+                <div class="detection-card" data-model-type="masked" id="card-masked">
+                    <div class="detection-card-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-person-bounding-box" style="color:#20c997"></i>
+                            <strong>Face Hiding</strong>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-masked">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="detection-card-body">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="min-width:120px">Confidence</span>
+                            <input type="range" id="conf-masked" min="0" max="1" step="0.05" value="0.5" style="flex:1">
+                            <span id="conf-masked-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:12px; display:flex; gap:8px;">
+                    <button class="btn btn-secondary" onclick="resetAIModels()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+                    <button class="btn btn-primary" onclick="saveAIModels()"><i class="bi bi-check2"></i> Apply</button>
+                </div>
+            </div>
+            <script>
+                // Sidebar initialization: load model states and wire events
+                document.addEventListener('DOMContentLoaded', function() {
+                    const eventIdAttr = document.body.getAttribute('data-event-id');
+                    const eventId = parseInt(eventIdAttr || '0', 10);
+
+                    function setActiveBadge(models) {
+                        const active = models.filter(m => m.is_enabled).length;
+                        const badge = document.getElementById('aiStatusBadge');
+                        if (badge) {
+                            badge.textContent = `${active} Active`;
+                            badge.className = active === 0 ? 'ai-status-badge ai-status-inactive' : 'ai-status-badge ai-status-active';
+                        }
+                    }
+
+                    function loadModels() {
+                        fetch(`/ai/models/${eventId}/`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (!data.success) return;
+                                const models = data.models || [];
+                                setActiveBadge(models);
+                                const byType = {};
+                                models.forEach(m => { byType[m.model_type] = m; });
+
+                                // Update each known card if present
+                                [
+                                  'weapon','fire','vehicle','suspicious','masked'
+                                ].forEach(type => {
+                                    const model = byType[type];
+                                    const toggle = document.getElementById(`toggle-${type}`);
+                                    const conf = document.getElementById(`conf-${type}`);
+                                    const confVal = document.getElementById(`conf-${type}-value`);
+                                    const card = document.getElementById(`card-${type}`);
+                                    if (!toggle || !conf || !confVal || !card) return;
+                                    const enabled = !!(model && model.is_enabled);
+                                    toggle.checked = enabled;
+                                    card.classList.toggle('enabled', enabled);
+                                    const c = model && typeof model.confidence_threshold === 'number' ? model.confidence_threshold : parseFloat(conf.value);
+                                    conf.value = c;
+                                    confVal.textContent = Number(c).toFixed(2);
+                                });
+                            })
+                            .catch(err => console.error('Failed to load models', err));
+                    }
+
+                    function toggleModel(type, enabled) {
+                        const card = document.getElementById(`card-${type}`);
+                        if (card) card.classList.toggle('enabled', enabled);
+                        
+                        // Special handling for weapon detection - use dedicated endpoint
+                        if (type === 'weapon') {
+                            fetch('/ai/models/weapon_detection/', {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: JSON.stringify({ 
+                                    event_id: eventId, 
+                                    enabled: enabled 
+                                })
+                            }).then(r => r.json()).then(data => {
+                                if (!data.success) {
+                                    showNotification('Error', data.error || 'Failed to toggle weapon detection', 'error');
+                                } else {
+                                    const msg = enabled ? 
+                                        `Weapon detection enabled${data.nsg_authorization_active ? ' with NSG authorization' : ''}` :
+                                        'Weapon detection disabled';
+                                    showNotification('Success', msg, 'success');
+                                    loadModels();
+                                }
+                            }).catch(err => {
+                                console.error('Weapon toggle error', err);
+                                showNotification('Error', 'Failed to toggle weapon detection', 'error');
+                            });
+                            return;
+                        }
+                        
+                        // Standard toggle for other models
+                        fetch(`/ai/models/${eventId}/${type_id(type)}/toggle/`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({ is_enabled: enabled })
+                        }).then(r => r.json()).then(data => {
+                            if (!data.success) {
+                                showNotification('Error', data.error || 'Failed to toggle model', 'error');
+                            } else {
+                                showNotification('Success', `Model ${enabled ? 'enabled' : 'disabled'}`, 'success');
+                                loadModels();
+                            }
+                        }).catch(err => console.error('Toggle error', err));
+                    }
+
+                    function updateConfidence(type, value) {
+                        fetch(`/ai/models/${eventId}/${type_id(type)}/confidence/`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ confidence: parseFloat(value) })
+                        }).then(r => r.json()).then(data => {
+                            if (!data.success) {
+                                showNotification('Error', data.error || 'Failed to update confidence', 'error');
+                            } else {
+                                showNotification('Success', 'Confidence updated', 'success');
+                            }
+                        }).catch(err => console.error('Confidence error', err));
+                    }
+
+                    // Helper: get model id by type from last loaded list
+                    let lastModelsByType = {};
+                    function type_id(type) {
+                        return lastModelsByType[type] && lastModelsByType[type].id ? lastModelsByType[type].id : 0;
+                    }
+
+                    // Refresh model ids map whenever loading
+                    function refreshModelIds() {
+                        fetch(`/ai/models/${eventId}/`)
+                          .then(r => r.json())
+                          .then(data => {
+                            if (!data.success) return;
+                            lastModelsByType = {};
+                            (data.models || []).forEach(m => { lastModelsByType[m.model_type] = m; });
+                          });
+                    }
+
+                    // Wire events
+                    ['weapon','fire','vehicle','suspicious','masked'].forEach(type => {
+                        const t = document.getElementById(`toggle-${type}`);
+                        const c = document.getElementById(`conf-${type}`);
+                        const cv = document.getElementById(`conf-${type}-value`);
+                        if (t) t.addEventListener('change', e => toggleModel(type, e.target.checked));
+                        if (c && cv) c.addEventListener('input', e => { cv.textContent = Number(e.target.value).toFixed(2); });
+                        if (c) c.addEventListener('change', e => updateConfidence(type, e.target.value));
+                    });
+
+                    // Ensure default models exist on first load
+                    fetch(`/ai/models/${eventId}/initialize/`, { method: 'POST' })
+                      .then(() => { refreshModelIds(); loadModels(); })
+                      .catch(() => { loadModels(); });
+                });
+            </script>
+        </div>
+    </div>
+
+    <!-- Face Recognition Sidebar -->
+    <div class="settings-sidebar" id="faceRecognitionSidebar" style="right: -450px; width: 450px;">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <i class="bi bi-person-check"></i> Face Recognition
+            </div>
+            <button class="sidebar-close" onclick="toggleFaceRecognition()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Upload Model -->
+            <div class="settings-section">
+                <div class="settings-section-title">Upload Face Model</div>
+                <input type="text" id="faceModelName" placeholder="Model name" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <input type="file" id="faceModelFile" accept=".onnx,.pb,.pt" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <button class="btn btn-primary" onclick="uploadFaceModel()" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600;">Upload Model</button>
+            </div>
+
+            <!-- Models List -->
+            <div class="settings-section">
+                <div class="settings-section-title">Uploaded Models</div>
+                <div id="faceModelsList" style="max-height: 150px; overflow-y: auto;">
+                    <p style="color: #888;">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Add Face to Database -->
+            <div class="settings-section">
+                <div class="settings-section-title">Add Face to Database</div>
+                <button class="btn btn-primary" onclick="openFaceModal()" data-bs-toggle="modal" data-bs-target="#faceUploadModal" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600; margin-bottom: 10px;">
+                    <i class="bi bi-person-plus"></i> Add Person Face(s)
+                </button>
+                <p style="font-size: 12px; color: #888; text-align: center; margin: 0;">Upload photos with person names as labels</p>
+            </div>
+
+            <!-- Faces Database -->
+            <div class="settings-section">
+                <div class="settings-section-title">Registered Faces</div>
+                <div id="facesDatabaseList" style="max-height: 150px; overflow-y: auto;">
+                    <p style="color: #888;">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Detect Faces -->
+            <div class="settings-section">
+                <div class="settings-section-title">Detect Faces in Image</div>
+                <input type="file" id="faceDetectImageFile" accept="image/*" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <button class="btn btn-primary" onclick="detectFaces()" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600;">Detect Faces</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Object Detection Sidebar -->
+    <div class="settings-sidebar" id="objectDetectionSidebar" style="right: -450px; width: 450px;">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <i class="bi bi-box-seam"></i> Object Detection
+            </div>
+            <button class="sidebar-close" onclick="toggleObjectDetection()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Upload Model -->
+            <div class="settings-section">
+                <div class="settings-section-title">Upload Object Model</div>
+                <input type="text" id="objectModelName" placeholder="Model name" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <input type="text" id="objectTypes" placeholder="Object types (comma separated)" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <input type="file" id="objectModelFile" accept=".onnx,.pb,.pt" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <button class="btn btn-primary" onclick="uploadObjectModel()" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600;">Upload Model</button>
+            </div>
+
+            <!-- Models List -->
+            <div class="settings-section">
+                <div class="settings-section-title">Uploaded Models</div>
+                <div id="objectModelsList" style="max-height: 150px; overflow-y: auto;">
+                    <p style="color: #888;">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Detect Objects -->
+            <div class="settings-section">
+                <div class="settings-section-title">Training Data</div>
+                <button class="btn btn-primary" onclick="openObjectModal()" data-bs-toggle="modal" data-bs-target="#objectUploadModal" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600; margin-bottom: 10px;">
+                    <i class="bi bi-cloud-upload"></i> Upload Training Images
+                </button>
+                <p style="font-size: 12px; color: #888; text-align: center; margin: 0;">Upload object images with class labels</p>
+            </div>
+
+            <!-- Detect Objects -->
+            <div class="settings-section">
+                <div class="settings-section-title">Detect Objects in Image</div>
+                <input type="file" id="objectDetectImageFile" accept="image/*" class="form-control form-control-sm mb-2" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; padding: 8px; border-radius: 4px;">
+                <button class="btn btn-primary" onclick="detectObjects()" style="width: 100%; background: #f5f5f5; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: 600;">Detect Objects</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Sidebar -->
+    <div class="settings-sidebar" id="settingsSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <i class="bi bi-gear-fill"></i> Settings
+            </div>
+            <button class="sidebar-close" onclick="toggleSettings()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Display Settings -->
+            <div class="settings-section">
+                <div class="settings-section-title">Display Settings</div>
+                
+                <div class="settings-item">
+                    <span class="settings-item-label">Dark Mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleDarkMode(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Show Grid Lines</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" onchange="toggleGridLines(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Auto-refresh Feeds</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleAutoRefresh(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Camera Settings -->
+            <div class="settings-section">
+                <div class="settings-section-title">Camera Settings</div>
+                
+                <div class="settings-item">
+                    <span class="settings-item-label">Feed Quality</span>
+                    <select class="settings-select" onchange="changeFeedQuality(this)">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="4k">4K</option>
+                    </select>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Refresh Rate</span>
+                    <select class="settings-select" onchange="changeRefreshRate(this)">
+                        <option value="5">5 seconds</option>
+                        <option value="10" selected>10 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">1 minute</option>
+                    </select>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Show Timestamps</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleTimestamps(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Map Settings -->
+            <div class="settings-section">
+                <div class="settings-section-title">Map Settings</div>
+                
+                <div class="settings-item">
+                    <span class="settings-item-label">Show Occupancy</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleOccupancy(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Heat Map View</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" onchange="toggleHeatMap(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Zoom Level</span>
+                    <select class="settings-select" onchange="changeZoomLevel(this)">
+                        <option value="50">50%</option>
+                        <option value="75">75%</option>
+                        <option value="100" selected>100%</option>
+                        <option value="150">150%</option>
+                        <option value="200">200%</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="settings-section">
+                <div class="settings-section-title">Notifications</div>
+                
+                <div class="settings-item">
+                    <span class="settings-item-label">Alert Sounds</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleAlertSounds(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Capacity Warnings</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleCapacityWarnings(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="settings-item">
+                    <span class="settings-item-label">Camera Offline Alerts</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked onchange="toggleOfflineAlerts(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="settings-button-group">
+                <button class="settings-action-btn btn-save" onclick="saveSettings()">
+                    <i class="bi bi-check-lg"></i> Save Settings
+                </button>
+                <button class="settings-action-btn btn-reset" onclick="resetSettings()">
+                    <i class="bi bi-arrow-clockwise"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Camera Modal -->
+    <div class="modal fade" id="addCameraModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Camera / Video Source</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCameraForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="cameraName" class="form-label">Camera Name</label>
+                            <input type="text" class="form-control" id="cameraName" name="camera_name" placeholder="e.g., Main Entrance Cam" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="streamType" class="form-label">Stream Type</label>
+                            <select class="form-select" id="streamType" name="stream_type" onchange="updateStreamTypeUI()" required>
+                                <option value="rtsp" selected>RTSP Stream</option>
+                                <option value="rtmp">RTMP Stream</option>
+                                <option value="http">HTTP/HTTPS Stream</option>
+                                <option value="hls">HLS Stream (M3U8)</option>
+                                <option value="ip">IP Camera (MJPEG)</option>
+                                <option value="usb">USB Camera</option>
+                                <option value="file">Video File</option>
+                                <option value="other">Other Protocol</option>
+                            </select>
+                            <small class="text-muted" id="streamTypeHelp">Select the type of video source</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="rtspUrl" class="form-label" id="urlLabel">Stream URL / Device</label>
+                            <input type="text" class="form-control" id="rtspUrl" name="rtsp_url" placeholder="rtsp://username:password@ip:port/stream" required>
+                            <small class="text-muted" id="urlHelp">Format: rtsp://username:password@192.168.1.100:554/stream1</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="cameraLocation" class="form-label">Camera Location (Optional)</label>
+                            <input type="text" class="form-control" id="cameraLocation" name="camera_location" placeholder="e.g., Main Gate">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-secondary w-100" onclick="testConnection()">
+                                <i class="bi bi-wifi"></i> Test Connection
+                            </button>
+                            <div id="testResult" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addCamera()">
+                        <i class="bi bi-plus-circle"></i> Add Camera
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Face Recognition Image Upload Modal -->
+    <div class="modal fade" id="faceUploadModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-plus"></i> Add Face to Database
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="faceUploadForm">
+                        <div class="mb-3">
+                            <label for="modalPersonName" class="form-label">Person Name</label>
+                            <input type="text" class="form-control" id="modalPersonName" placeholder="Enter person's name" required>
+                            <small class="text-muted">This will be used as a label for face recognition</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalFaceImages" class="form-label">Face Images</label>
+                            <input type="file" class="form-control" id="modalFaceImages" accept="image/*" multiple required>
+                            <small class="text-muted">You can upload multiple images of the same person (JPG, PNG, WebP)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Image Preview</label>
+                            <div id="imagePreviewContainer" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 300px; overflow-y: auto;">
+                                <p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>
+                            </div>
+                        </div>
+                        <div class="alert alert-info" style="background: rgba(33, 150, 243, 0.1); border: 1px solid #2196f3; color: #90caf9; font-size: 12px;">
+                            <i class="bi bi-info-circle"></i> Tip: Upload clear, well-lit photos with visible faces for better recognition accuracy
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitFaceUpload()">
+                        <i class="bi bi-cloud-upload"></i> Add Face(s)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Object Detection Label Upload Modal -->
+    <div class="modal fade" id="objectUploadModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-box-seam"></i> Upload Object Detection Images
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="objectUploadForm">
+                        <div class="mb-3">
+                            <label for="modalObjectLabel" class="form-label">Object Label/Class</label>
+                            <input type="text" class="form-control" id="modalObjectLabel" placeholder="e.g., weapon, vehicle, fire, person" required>
+                            <small class="text-muted">Label for the objects you're uploading images of</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalObjectName" class="form-label">Dataset Name (Optional)</label>
+                            <input type="text" class="form-control" id="modalObjectName" placeholder="e.g., Training Set 1">
+                            <small class="text-muted">Name to organize your training data</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalObjectImages" class="form-label">Object Images</label>
+                            <input type="file" class="form-control" id="modalObjectImages" accept="image/*" multiple required>
+                            <small class="text-muted">Upload multiple images of the object class (JPG, PNG, WebP)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Image Preview</label>
+                            <div id="objectImagePreviewContainer" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 300px; overflow-y: auto;">
+                                <p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>
+                            </div>
+                        </div>
+                        <div class="alert alert-info" style="background: rgba(33, 150, 243, 0.1); border: 1px solid #2196f3; color: #90caf9; font-size: 12px;">
+                            <i class="bi bi-info-circle"></i> Tip: Upload diverse images from different angles and lighting conditions for better model training
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitObjectUpload()">
+                        <i class="bi bi-cloud-upload"></i> Upload Images
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Initialize EVENT_ID at the very top
+        const EVENT_ID = parseInt(document.body.getAttribute('data-event-id') || '0', 10);
+        
+        let activeDetections = 0;  // Start with 0 active detections
+        let notificationCallback = null;
+
+        // Notification System
+        function showNotification(title, message, type = 'info', buttons = null) {
+            const overlay = document.getElementById('notificationOverlay');
+            const icon = document.getElementById('notificationIcon');
+            const titleEl = document.getElementById('notificationTitle');
+            const messageEl = document.getElementById('notificationMessage');
+            const buttonsEl = document.getElementById('notificationButtons');
+
+            // Set content
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            // Set icon
+            icon.className = 'notification-icon ' + type;
+            let iconHtml = '';
+            switch(type) {
+                case 'success':
+                    iconHtml = '<i class="bi bi-check-circle-fill"></i>';
+                    break;
+                case 'error':
+                    iconHtml = '<i class="bi bi-x-circle-fill"></i>';
+                    break;
+                case 'warning':
+                    iconHtml = '<i class="bi bi-exclamation-triangle-fill"></i>';
+                    break;
+                case 'confirm':
+                    iconHtml = '<i class="bi bi-question-circle-fill"></i>';
+                    break;
+                default:
+                    iconHtml = '<i class="bi bi-info-circle-fill"></i>';
+            }
+            icon.innerHTML = iconHtml;
+
+            // Set buttons
+            if (buttons) {
+                buttonsEl.innerHTML = buttons;
+            } else {
+                buttonsEl.innerHTML = '<button class="notification-btn primary" onclick="closeNotification()">OK</button>';
+            }
+
+            overlay.classList.add('show');
+        }
+
+        function closeNotification() {
+            document.getElementById('notificationOverlay').classList.remove('show');
+            if (notificationCallback) {
+                notificationCallback(false);
+                notificationCallback = null;
+            }
+        }
+
+        function showConfirm(title, message, onConfirm) {
+            notificationCallback = onConfirm;
+            const buttons = `
+                <button class="notification-btn secondary" onclick="closeNotification()">Cancel</button>
+                <button class="notification-btn danger" onclick="confirmAction()">Confirm</button>
+            `;
+            showNotification(title, message, 'confirm', buttons);
+        }
+
+        function confirmAction() {
+            document.getElementById('notificationOverlay').classList.remove('show');
+            if (notificationCallback) {
+                notificationCallback(true);
+                notificationCallback = null;
+            }
+        }
+
+        // Fullscreen Feed Functions
+        function expandFeed(cameraName, feedUrl) {
+            const overlay = document.getElementById('fullscreenOverlay');
+            const nameEl = document.getElementById('fullscreenCameraName');
+            const imgEl = document.getElementById('fullscreenFeedImage');
+            
+            nameEl.textContent = cameraName;
+            imgEl.src = feedUrl;
+            imgEl.alt = cameraName;
+            
+            overlay.classList.add('show');
+            
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeFullscreen(event) {
+            // If event is passed and target is the overlay itself, close
+            if (event && event.target.id !== 'fullscreenOverlay') {
+                return;
+            }
+            
+            const overlay = document.getElementById('fullscreenOverlay');
+            overlay.classList.remove('show');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
+
+        // Close fullscreen on ESC key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeFullscreen();
+            }
+        });
+
+        // AI Models and Settings Functions
+        function toggleAIModels() {
+            const sidebar = document.getElementById('aiModelsSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const settingsSidebar = document.getElementById('settingsSidebar');
+            settingsSidebar.classList.remove('open');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
+        function closeAllSidebars() {
+            document.getElementById('aiModelsSidebar').classList.remove('open');
+            document.getElementById('settingsSidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('show');
+        }
+
+        function toggleDetection(checkbox, type) {
+            // This is now handled by toggleModelDetection in the dynamic rendering
+            const card = checkbox.closest('.detection-card');
+            if (checkbox.checked) {
+                card.classList.add('enabled');
+                activeDetections++;
+            } else {
+                card.classList.remove('enabled');
+                activeDetections--;
+            }
+            updateAIStatus();
+        }
+
+        function updateConfidence(slider, type) {
+            // This is now handled by updateModelConfidence in the dynamic rendering
+            const span = document.getElementById(type + 'Confidence');
+            if (span) {
+                span.textContent = slider.value + '%';
+            }
+        }
+
+        function updateAIStatus() {
+            const badge = document.getElementById('aiStatusBadge');
+            if (badge) {
+                badge.textContent = `${activeDetections} Active`;
+                badge.className = activeDetections === 0 ? 'ai-status-badge ai-status-inactive' : 'ai-status-badge ai-status-active';
+            }
+        }
+
+        function saveAIModels() {
+            // Models are auto-saved when toggled/changed via API
+            showNotification('Success', 'All changes have been saved!', 'success');
+            setTimeout(() => {
+                closeNotification();
+            }, 1500);
+        }
+
+        function resetAIModels() {
+            showConfirm('Reset AI Models', 'Are you sure you want to reset all AI detection models to default?', (confirmed) => {
+                if (confirmed) {
+                    location.reload();
+                }
+            });
+        }
+
+        function toggleSettings() {
+            const sidebar = document.getElementById('settingsSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const aiSidebar = document.getElementById('aiModelsSidebar');
+            aiSidebar.classList.remove('open');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
+        // Navigate to Face Recognition Page
+        let faceRecognitionEnabled = false;
+        let objectDetectionEnabled = false;
+        
+        // Load Face Recognition Status from backend
+        function loadFaceRecognitionStatus() {
+            fetch(`/api/face-recognition/status/${EVENT_ID}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        faceRecognitionEnabled = data.enabled;
+                        const btn = document.getElementById('faceRecToggle');
+                        const status = document.getElementById('faceRecStatus');
+                        
+                        if (faceRecognitionEnabled) {
+                            btn.classList.add('active');
+                            status.classList.add('active');
+                            status.textContent = 'ON';
+                        } else {
+                            btn.classList.remove('active');
+                            status.classList.remove('active');
+                            status.textContent = 'OFF';
+                        }
+                        console.log('Loaded Face Recognition status:', faceRecognitionEnabled);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading face recognition status:', err);
+                });
+        }
+        
+        function navigateToFaceRecognition(e) {
+            e.stopPropagation();
+            // Navigate to face recognition page
+            window.location.href = "{% url 'face_recognition_page' event.id %}";
+        }
+
+        // Toggle Face Recognition
+        function toggleFaceRecognition(e) {
+            e.stopPropagation();
+            faceRecognitionEnabled = !faceRecognitionEnabled;
+            const btn = document.getElementById('faceRecToggle');
+            const status = document.getElementById('faceRecStatus');
+
+            // Optimistic UI update
+            if (faceRecognitionEnabled) {
+                btn.classList.add('active');
+                status.classList.add('active');
+                status.textContent = 'ON';
+            } else {
+                btn.classList.remove('active');
+                status.classList.remove('active');
+                status.textContent = 'OFF';
+            }
+
+            // Send toggle to backend API to update DB and running streams
+            try {
+                const csrftoken = getCookie('csrftoken');
+                const fd = new FormData();
+                fd.append('enabled', faceRecognitionEnabled ? 'true' : 'false');
+
+                fetch(`/api/face-recognition/toggle/${EVENT_ID}/`, {
+                    method: 'POST',
+                    body: fd,
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        // revert UI
+                        faceRecognitionEnabled = !faceRecognitionEnabled;
+                        if (faceRecognitionEnabled) {
+                            btn.classList.add('active');
+                            status.classList.add('active');
+                            status.textContent = 'ON';
+                        } else {
+                            btn.classList.remove('active');
+                            status.classList.remove('active');
+                            status.textContent = 'OFF';
+                        }
+                        alert('Failed to update face recognition: ' + (data.message || 'unknown'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Toggle API error', err);
+                    // revert UI
+                    faceRecognitionEnabled = !faceRecognitionEnabled;
+                    if (faceRecognitionEnabled) {
+                        btn.classList.add('active');
+                        status.classList.add('active');
+                        status.textContent = 'ON';
+                    } else {
+                        btn.classList.remove('active');
+                        status.classList.remove('active');
+                        status.textContent = 'OFF';
+                    }
+                    alert('Network error toggling face recognition');
+                });
+            } catch (err) {
+                console.error(err);
+            }
+
+            console.log('Face Recognition:', faceRecognitionEnabled ? 'Enabled' : 'Disabled');
+        }
+
+        // Toggle Object Detection
+        function toggleObjectDetection(e) {
+            e.stopPropagation();
+            objectDetectionEnabled = !objectDetectionEnabled;
+            const btn = document.getElementById('objectDetToggle');
+            const status = document.getElementById('objectDetStatus');
+            
+            if (objectDetectionEnabled) {
+                btn.classList.add('active');
+                status.classList.add('active');
+                status.textContent = 'ON';
+            } else {
+                btn.classList.remove('active');
+                status.classList.remove('active');
+                status.textContent = 'OFF';
+            }
+            
+            console.log('Object Detection:', objectDetectionEnabled ? 'Enabled' : 'Disabled');
+        }
+
+        function toggleDarkMode(checkbox) { console.log('Dark mode:', checkbox.checked); }
+        function toggleGridLines(checkbox) { console.log('Grid lines:', checkbox.checked); }
+        function toggleAutoRefresh(checkbox) { console.log('Auto-refresh:', checkbox.checked); }
+        function changeFeedQuality(select) { console.log('Feed quality:', select.value); }
+        function changeRefreshRate(select) { console.log('Refresh rate:', select.value); }
+        function toggleTimestamps(checkbox) { console.log('Timestamps:', checkbox.checked); }
+        function toggleOccupancy(checkbox) { console.log('Occupancy:', checkbox.checked); }
+        function toggleHeatMap(checkbox) { console.log('Heat map:', checkbox.checked); }
+        function changeZoomLevel(select) { console.log('Zoom level:', select.value); }
+        function toggleAlertSounds(checkbox) { console.log('Alert sounds:', checkbox.checked); }
+        function toggleCapacityWarnings(checkbox) { console.log('Capacity warnings:', checkbox.checked); }
+        function toggleOfflineAlerts(checkbox) { console.log('Offline alerts:', checkbox.checked); }
+
+        function saveSettings() {
+            showNotification('Success', 'Settings saved successfully!', 'success');
+            setTimeout(() => {
+                toggleSettings();
+                closeNotification();
+            }, 1500);
+        }
+
+        function resetSettings() {
+            showConfirm('Reset Settings', 'Are you sure you want to reset all settings to default?', (confirmed) => {
+                if (confirmed) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Camera Management Functions
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Update UI based on selected stream type
+        function updateStreamTypeUI() {
+            const streamType = document.getElementById('streamType').value;
+            const urlInput = document.getElementById('rtspUrl');
+            const urlLabel = document.getElementById('urlLabel');
+            const urlHelp = document.getElementById('urlHelp');
+            
+            // Update labels and placeholders based on stream type
+            switch(streamType) {
+                case 'rtsp':
+                    urlLabel.textContent = 'RTSP URL';
+                    urlInput.placeholder = 'rtsp://username:password@ip:port/path';
+                    urlHelp.textContent = 'Example: rtsp://admin:pass@192.168.1.100:554/stream1';
+                    break;
+                    
+                case 'rtmp':
+                    urlLabel.textContent = 'RTMP URL';
+                    urlInput.placeholder = 'rtmp://server/live/stream';
+                    urlHelp.textContent = 'Example: rtmp://192.168.1.100:1935/live/camera1';
+                    break;
+                    
+                case 'http':
+                    urlLabel.textContent = 'HTTP/HTTPS URL';
+                    urlInput.placeholder = 'http://camera-ip/video';
+                    urlHelp.textContent = 'Example: http://192.168.1.100:8080/video';
+                    break;
+                    
+                case 'hls':
+                    urlLabel.textContent = 'HLS URL (M3U8)';
+                    urlInput.placeholder = 'http://server/stream/playlist.m3u8';
+                    urlHelp.textContent = 'Example: https://cdn.example.com/live/stream.m3u8';
+                    break;
+                    
+                case 'ip':
+                    urlLabel.textContent = 'IP Camera URL (MJPEG)';
+                    urlInput.placeholder = 'http://ip/video.mjpg';
+                    urlHelp.textContent = 'Example: http://192.168.1.100/video.mjpeg';
+                    break;
+                    
+                case 'usb':
+                    urlLabel.textContent = 'USB Device Index';
+                    urlInput.placeholder = '0';
+                    urlHelp.textContent = 'Enter device index: 0 for first camera, 1 for second, etc.';
+                    urlInput.value = '0'; // Default to first USB camera
+                    break;
+                    
+                case 'file':
+                    urlLabel.textContent = 'Video File Path';
+                    urlInput.placeholder = '/path/to/video/file.mp4';
+                    urlHelp.textContent = 'Example: /media/recordings/footage.mp4';
+                    break;
+                    
+                case 'other':
+                    urlLabel.textContent = 'Stream URL / Connection String';
+                    urlInput.placeholder = 'Enter connection string';
+                    urlHelp.textContent = 'Enter the appropriate connection string for your protocol';
+                    break;
+            }
+        }
+
+        function testConnection() {
+            const rtspUrl = document.getElementById('rtspUrl').value;
+            const streamType = document.getElementById('streamType').value;
+            const testResult = document.getElementById('testResult');
+            
+            if (!rtspUrl) {
+                testResult.innerHTML = '<div class="alert alert-warning">Please enter stream URL or device</div>';
+                return;
+            }
+
+            testResult.innerHTML = '<div class="alert alert-info">Testing connection...</div>';
+
+            fetch('{% url "test_rtsp" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `rtsp_url=${encodeURIComponent(rtspUrl)}&stream_type=${encodeURIComponent(streamType)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    testResult.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Connection successful!</div>';
+                } else {
+                    testResult.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle"></i> ${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                testResult.innerHTML = '<div class="alert alert-danger">Connection test failed</div>';
+                console.error('Error:', error);
+            });
+        }
+
+        function addCamera() {
+            const form = document.getElementById('addCameraForm');
+            const formData = new FormData(form);
+            
+            fetch('{% url "add_camera" event.id %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', 'Camera added successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error', 'Failed to add camera', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        function removeCamera(cameraId) {
+            console.log('removeCamera called with ID:', cameraId);
+            showConfirm('Remove Camera', 'Are you sure you want to remove this camera?', (confirmed) => {
+                if (!confirmed) return;
+                
+                console.log('Sending delete request for camera ID:', cameraId);
+                fetch(`/camera/delete/${cameraId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.status === 'success') {
+                        showNotification('Success', 'Camera removed successfully!', 'success');
+                        // Remove the feed element immediately for better UX
+                        const feedElement = document.querySelector(`[data-camera-id="${cameraId}"]`)?.closest('.camera-feed');
+                        if (feedElement) {
+                            feedElement.style.opacity = '0.5';
+                            feedElement.style.pointerEvents = 'none';
+                        }
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showNotification('Error', data.message || 'Unknown error occurred', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Delete camera error:', error);
+                    showNotification('Error', `Failed to remove camera: ${error.message}`, 'error');
+                });
+            });
+        }
+
+        function pinCamera(cameraId) {
+            fetch(`/camera/pin/${cameraId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', 'Camera pinned successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error', 'Failed to pin camera', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        function unpinCamera(cameraId) {
+            fetch(`/camera/unpin/${cameraId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', 'Camera unpinned successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error', 'Failed to unpin camera', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        // Canvas Setup
+        const canvas = document.getElementById('architecture-canvas');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        let currentTool = 'wall';
+        let isDrawing = false;
+        let isDragging = false;
+        let isResizing = false;
+        let startX, startY;
+        let shapes = [];
+        let selectedShape = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let resizeHandle = null;
+        const PIXELS_PER_METER = 20;
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            redrawCanvas();
+        }
+
+        function selectTool(tool) {
+            currentTool = tool;
+            selectedShape = null;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            const toolBtn = document.getElementById(tool + '-tool');
+            if (toolBtn) toolBtn.classList.add('active');
+            hidePropertiesPanel();
+        }
+
+        if (canvas) {
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (currentTool === 'select') {
+                selectedShape = getShapeAtPoint(mouseX, mouseY);
+                if (selectedShape) {
+                    resizeHandle = getResizeHandle(mouseX, mouseY, selectedShape);
+                    if (resizeHandle) {
+                        isResizing = true;
+                    } else if (isPointInShape(mouseX, mouseY, selectedShape)) {
+                        isDragging = true;
+                        dragOffsetX = mouseX - selectedShape.x;
+                        dragOffsetY = mouseY - selectedShape.y;
+                    }
+                    showPropertiesPanel(selectedShape);
+                } else {
+                    hidePropertiesPanel();
+                }
+            } else {
+                isDrawing = true;
+                startX = mouseX;
+                startY = mouseY;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const           mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (isDragging && selectedShape) {
+                selectedShape.x = mouseX - dragOffsetX;
+                selectedShape.y = mouseY - dragOffsetY;
+                redrawCanvas();
+                return;
+            }
+
+            if (isResizing && selectedShape && resizeHandle) {
+                handleResize(mouseX, mouseY);
+                redrawCanvas();
+                return;
+            }
+
+            if (!isDrawing) return;
+            
+            redrawCanvas();
+            const color = document.getElementById('color-picker').value;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2;
+
+            switch(currentTool) {
+                case 'wall':
+                    drawWallPreview(startX, startY, mouseX, mouseY, color);
+                    break;
+                case 'door':
+                    drawDoorPreview(startX, startY, mouseX, mouseY, color);
+                    break;
+                case 'window':
+                    drawWindowPreview(startX, startY, mouseX, mouseY, color);
+                    break;
+                case 'cctv':
+                    ctx.beginPath();
+                    ctx.arc(startX, startY, 15, 0, 2 * Math.PI);
+                    ctx.fill();
+                    break;
+                case 'drone':
+                    ctx.font = 'bold 25px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🚁', mouseX, mouseY);
+                    break;
+                case 'camera':
+                    ctx.font = 'bold 20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('📷', mouseX, mouseY);
+                    break;
+                case 'rectangle':
+                    ctx.strokeRect(startX, startY, mouseX - startX, mouseY - startY);
+                    break;
+                case 'line':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(mouseX, mouseY);
+                    ctx.stroke();
+                    break;
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                isDragging = false;
+                return;
+            }
+
+            if (isResizing) {
+                isResizing = false;
+                resizeHandle = null;
+                return;
+            }
+
+            if (!isDrawing) return;
+            isDrawing = false;
+
+            const rect = canvas.getBoundingClientRect();
+            const endX = e.clientX - rect.left;
+            const endY = e.clientY - rect.top;
+            const color = document.getElementById('color-picker').value;
+
+            let shape = null;
+            switch(currentTool) {
+                case 'wall':
+                    const distance = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                    const meters = (distance / PIXELS_PER_METER).toFixed(2);
+                    shape = { type: 'wall', x: startX, y: startY, x2: endX, y2: endY, color: color, width: 5, meters: meters, rotation: 0 };
+                    break;
+                case 'door':
+                    shape = { type: 'door', x: startX, y: startY, width: Math.abs(endX - startX) || 40, height: Math.abs(endY - startY) || 60, color: color, rotation: 0, label: 'Door' };
+                    break;
+                case 'window':
+                    shape = { type: 'window', x: startX, y: startY, width: Math.abs(endX - startX) || 50, height: Math.abs(endY - startY) || 10, color: color, rotation: 0, label: 'Window' };
+                    break;
+                case 'cctv':
+                    shape = { type: 'cctv', x: startX, y: startY, radius: 15, color: color, rotation: 0, label: 'CCTV-' + (shapes.filter(s => s.type === 'cctv').length + 1) };
+                    break;
+                case 'drone':
+                    shape = { type: 'drone', x: startX, y: startY, size: 25, color: color, rotation: 0, label: 'Drone-' + (shapes.filter(s => s.type === 'drone').length + 1) };
+                    break;
+                case 'camera':
+                    shape = { type: 'camera', x: startX, y: startY, size: 20, color: color, rotation: 0, label: 'CAM-' + (shapes.filter(s => s.type === 'camera').length + 1) };
+                    break;
+                case 'rectangle':
+                    shape = { type: 'rectangle', x: startX, y: startY, width: endX - startX, height: endY - startY, color: color, rotation: 0, label: 'Room' };
+                    break;
+                case 'line':
+                    shape = { type: 'line', x: startX, y: startY, x2: endX, y2: endY, color: color, rotation: 0 };
+                    break;
+                case 'text':
+                    const text = prompt('Enter text:');
+                    if (text) {
+                        shape = { type: 'text', x: startX, y: startY, text: text, color: color, fontSize: 16, rotation: 0 };
+                    }
+                    break;
+            }
+
+            if (shape) {
+                shapes.push(shape);
+                redrawCanvas();
+            }
+        });
+
+        function drawWallPreview(x1, y1, x2, y2, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const meters = (distance / PIXELS_PER_METER).toFixed(2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Poppins';
+            ctx.fillText(meters + 'm', (x1 + x2) / 2, (y1 + y2) / 2 - 10);
+        }
+
+        function drawDoorPreview(x, y, x2, y2, color) {
+            const width = Math.abs(x2 - x) || 40;
+            const height = Math.abs(y2 - y) || 60;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + width - 10, y + height/2, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function drawWindowPreview(x, y, x2, y2, color) {
+            const width = Math.abs(x2 - x) || 50;
+            const height = Math.abs(y2 - y) || 10;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, width, height);
+            ctx.beginPath();
+            ctx.moveTo(x + width/2, y);
+            ctx.lineTo(x + width/2, y + height);
+            ctx.stroke();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            shapes.forEach(shape => {
+                ctx.save();
+                if (shape.rotation) {
+                    const centerX = shape.x + (shape.width || 0) / 2;
+                    const centerY = shape.y + (shape.height || 0) / 2;
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(shape.rotation * Math.PI / 180);
+                    ctx.translate(-centerX, -centerY);
+                }
+
+                ctx.strokeStyle = shape.color;
+                ctx.fillStyle = shape.color;
+                ctx.lineWidth = 2;
+
+                switch(shape.type) {
+                    case 'wall':
+                        ctx.lineWidth = shape.width || 5;
+                        ctx.beginPath();
+                        ctx.moveTo(shape.x, shape.y);
+                        ctx.lineTo(shape.x2, shape.y2);
+                        ctx.stroke();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '12px Poppins';
+                        ctx.fillText(shape.meters + 'm', (shape.x + shape.x2) / 2, (shape.y + shape.y2) / 2 - 10);
+                        break;
+                    case 'door':
+                        ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                        ctx.strokeStyle = '#000';
+                        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.arc(shape.x + shape.width - 10, shape.y + shape.height/2, 3, 0, 2 * Math.PI);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px Poppins';
+                        ctx.fillText(shape.label, shape.x + 5, shape.y - 5);
+                        break;
+                    case 'window':
+                        ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                        ctx.beginPath();
+                        ctx.moveTo(shape.x + shape.width/2, shape.y);
+                        ctx.lineTo(shape.x + shape.width/2, shape.y + shape.height);
+                        ctx.stroke();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px Poppins';
+                        ctx.fillText(shape.label, shape.x, shape.y - 5);
+                        break;
+                    case 'cctv':
+                        ctx.beginPath();
+                        ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+                        ctx.fill();
+                        ctx.fillStyle = '#000';
+                        ctx.font = 'bold 16px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('📹', shape.x, shape.y + 5);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px Poppins';
+                        ctx.fillText(shape.label, shape.x, shape.y + shape.radius + 15);
+                        break;
+                    case 'drone':
+                        ctx.font = 'bold 25px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('🚁', shape.x, shape.y);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px Poppins';
+                        ctx.fillText(shape.label, shape.x, shape.y + 20);
+                        break;
+                    case 'camera':
+                        ctx.font = 'bold 20px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('📷', shape.x, shape.y);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px Poppins';
+                        ctx.fillText(shape.label, shape.x, shape.y + 20);
+                        break;
+                    case 'rectangle':
+                        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                        if (shape.label) {
+                            ctx.fillStyle = '#fff';
+                            ctx.font = '12px Poppins';
+                            ctx.fillText(shape.label, shape.x + 5, shape.y + 15);
+                        }
+                        break;
+                    case 'line':
+                        ctx.beginPath();
+                        ctx.moveTo(shape.x, shape.y);
+                        ctx.lineTo(shape.x2, shape.y2);
+                        ctx.stroke();
+                        break;
+                    case 'text':
+                        ctx.font = shape.fontSize + 'px Poppins';
+                        ctx.fillText(shape.text, shape.x, shape.y);
+                        break;
+                }
+
+                if (shape === selectedShape) {
+                    drawSelectionHandles(shape);
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawSelectionHandles(shape) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            let bounds = getShapeBounds(shape);
+            ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            const handleSize = 6;
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(bounds.x - handleSize/2, bounds.y - handleSize/2, handleSize, handleSize);
+            ctx.fillRect(bounds.x + bounds.width - handleSize/2, bounds.y - handleSize/2, handleSize, handleSize);
+            ctx.fillRect(bounds.x - handleSize/2, bounds.y + bounds.height - handleSize/2, handleSize, handleSize);
+            ctx.fillRect(bounds.x + bounds.width - handleSize/2, bounds.y + bounds.height - handleSize/2, handleSize, handleSize);
+            ctx.beginPath();
+            ctx.arc(bounds.x + bounds.width/2, bounds.y - 20, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function getShapeBounds(shape) {
+            switch(shape.type) {
+                case 'wall':
+                case 'line':
+                    return { x: Math.min(shape.x, shape.x2), y: Math.min(shape.y, shape.y2), width: Math.abs(shape.x2 - shape.x), height: Math.abs(shape.y2 - shape.y) };
+                case 'cctv':
+                    return { x: shape.x - shape.radius, y: shape.y - shape.radius, width: shape.radius * 2, height: shape.radius * 2 };
+                case 'drone':
+                case 'camera':
+                    return { x: shape.x - shape.size/2, y: shape.y - shape.size/2, width: shape.size, height: shape.size };
+                default:
+                    return { x: shape.x, y: shape.y, width: shape.width || 50, height: shape.height || 50 };
+            }
+        }
+
+        function getShapeAtPoint(x, y) {
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                if (isPointInShape(x, y, shapes[i])) return shapes[i];
+            }
+            return null;
+        }
+
+        function isPointInShape(x, y, shape) {
+            const bounds = getShapeBounds(shape);
+            return x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
+        }
+
+        function getResizeHandle(x, y, shape) {
+            const bounds = getShapeBounds(shape);
+            const handleSize = 6;
+            const handles = [
+                { name: 'tl', x: bounds.x, y: bounds.y },
+                { name: 'tr', x: bounds.x + bounds.width, y: bounds.y },
+                { name: 'bl', x: bounds.x, y: bounds.y + bounds.height },
+                { name: 'br', x: bounds.x + bounds.width, y: bounds.y + bounds.height }
+            ];
+            for (let handle of handles) {
+                if (Math.abs(x - handle.x) < handleSize && Math.abs(y - handle.y) < handleSize) return handle.name;
+            }
+            return null;
+        }
+
+        function handleResize(mouseX, mouseY) {
+            if (!selectedShape || !resizeHandle) return;
+            if (resizeHandle === 'br' && selectedShape.width !== undefined) {
+                selectedShape.width = mouseX - selectedShape.x;
+                selectedShape.height = mouseY - selectedShape.y;
+            }
+        }
+
+        function showPropertiesPanel(shape) {
+            const panel = document.getElementById('propertiesPanel');
+            const content = document.getElementById('propertiesContent');
+            let html = `<div class="mb-2"><label class="form-label" style="font-size: 12px;">Label</label><input type="text" class="form-control form-control-sm" value="${shape.label || ''}" onchange="updateShapeProperty('label', this.value)"></div>`;
+            html += `<div class="mb-2"><label class="form-label" style="font-size: 12px;">Rotation (°)</label><input type="number" class="form-control form-control-sm" value="${shape.rotation || 0}" onchange="updateShapeProperty('rotation', parseFloat(this.value))"></div>`;
+            if (shape.width !== undefined) html += `<div class="mb-2"><label class="form-label" style="font-size: 12px;">Width</label><input type="number" class="form-control form-control-sm" value="${shape.width}" onchange="updateShapeProperty('width', parseFloat(this.value))"></div>`;
+            if (shape.height !== undefined) html += `<div class="mb-2"><label class="form-label" style="font-size: 12px;">Height</label><input type="number" class="form-control form-control-sm" value="${shape.height}" onchange="updateShapeProperty('height', parseFloat(this.value))"></div>`;
+            content.innerHTML = html;
+            panel.style.display = 'block';
+        }
+
+        function hidePropertiesPanel() {
+            document.getElementById('propertiesPanel').style.display = 'none';
+        }
+
+        function updateShapeProperty(prop, value) {
+            if (selectedShape) {
+                selectedShape[prop] = value;
+                redrawCanvas();
+            }
+        }
+
+        function deleteSelectedShape() {
+            if (selectedShape) {
+                shapes = shapes.filter(s => s !== selectedShape);
+                selectedShape = null;
+                hidePropertiesPanel();
+                redrawCanvas();
+            }
+        }
+
+        function clearCanvas() {
+            showConfirm('Clear Canvas', 'Are you sure you want to clear all shapes?', (confirmed) => {
+                if (confirmed) {
+                    shapes = [];
+                    selectedShape = null;
+                    hidePropertiesPanel();
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            });
+        }
+
+        function createMap() {
+            document.getElementById('noMapState').style.display = 'none';
+            document.getElementById('canvasContainer').style.display = 'flex';
+            
+            setTimeout(() => {
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            }, 100);
+        }
+        } // End of canvas check
+
+        function saveMap() {
+            const mapData = {
+                shapes: shapes,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('Map saved:', mapData);
+            showNotification('Success', `Map saved successfully with ${shapes.length} elements!`, 'success');
+        }
+
+        function addCamera() {
+            const formData = new FormData(document.getElementById('addCameraForm'));
+            
+            fetch(`/camera/add/{{ event.id }}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    bootstrap.Modal.getInstance(document.getElementById('addCameraModal')).hide();
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+
+        // ========================================
+        // AI MODEL MANAGEMENT FUNCTIONS
+        // ========================================
+        
+        let aiModels = [];
+
+        // Load AI models on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Commented out until AI models endpoints are implemented
+            // loadAIModels();
+            // initializeDefaultModels();
+        });
+
+        // Initialize default models if they don't exist
+        function initializeDefaultModels() {
+            fetch(`/ai/models/${EVENT_ID}/initialize/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Default models initialized:', data.message);
+            })
+            .catch(error => console.error('Error initializing models:', error));
+        }
+
+        // Load AI models from backend
+        function loadAIModels() {
+            console.log('Loading AI models for event:', EVENT_ID);
+            fetch(`/ai/models/${EVENT_ID}/`)
+                .then(response => {
+                    console.log('API response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API response data:', data);
+                    if (data.success) {
+                        aiModels = data.models;
+                        console.log('Loaded models:', aiModels);
+                        // Count active models from backend (only allowed types)
+                        const allowedTypes = ['weapon', 'fire', 'vehicle'];
+                        activeDetections = aiModels.filter(m => m.is_enabled && allowedTypes.includes(m.model_type)).length;
+                        renderAIModels();
+                        updateAIStatus();
+                    } else {
+                        console.error('API returned success=false:', data);
+                        showErrorInSidebar('Failed to load models: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading AI models:', error);
+                    showErrorInSidebar('Failed to load models. Check console for details.');
+                });
+        }
+
+        function showErrorInSidebar(message) {
+            const container = document.querySelector('.ai-models-sidebar .sidebar-content');
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #f44336;">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 48px;"></i>
+                        <p style="margin-top: 20px;">${message}</p>
+                        <button class="settings-action-btn btn-save" onclick="loadAIModels()" style="margin-top: 20px;">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Render AI models in the sidebar
+        function renderAIModels() {
+            console.log('Rendering AI models...');
+            const container = document.querySelector('.ai-models-sidebar .sidebar-content');
+            if (!container) {
+                console.error('Sidebar content container not found!');
+                return;
+            }
+
+            // Only show these detection types
+            const allowedTypes = ['weapon', 'fire', 'vehicle'];
+            const filteredModels = aiModels.filter(model => allowedTypes.includes(model.model_type));
+            console.log('Filtered models:', filteredModels);
+
+            if (filteredModels.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #888;">
+                        <i class="bi bi-info-circle" style="font-size: 48px;"></i>
+                        <p style="margin-top: 20px;">No detection models found.</p>
+                        <p style="font-size: 12px; color: #666;">Click "Retry" to initialize models.</p>
+                        <button class="settings-action-btn btn-save" onclick="initializeDefaultModels(); setTimeout(loadAIModels, 1000);" style="margin-top: 20px;">
+                            Initialize Models
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const modelIcons = {
+                'vehicle': { icon: 'bi-car-front-fill', color: '#2196F3' },
+                'weapon': { icon: 'bi-exclamation-triangle-fill', color: '#f44336' },
+                'fire': { icon: 'bi-fire', color: '#ff5722' }
+            };
+
+            let html = `
+                <div class="settings-section">
+                    <div class="settings-section-title">AI Detection Models</div>
+                    <p style="font-size: 12px; color: #888; margin-bottom: 20px;">
+                        Configure AI models to detect threats and analyze camera feeds in real-time
+                    </p>
+            `;
+
+            filteredModels.forEach(model => {
+                const iconData = modelIcons[model.model_type] || { icon: 'bi-cpu', color: '#666' };
+                const confidencePercent = Math.round(model.confidence_threshold * 100);
+                
+                html += `
+                    <div class="detection-card ${model.is_enabled ? 'enabled' : ''}" id="model-card-${model.id}">
+                        <div class="detection-card-header">
+                            <div class="detection-title">
+                                <div class="detection-icon">
+                                    <i class="bi ${iconData.icon}" style="color: ${iconData.color};"></i>
+                                </div>
+                                ${model.model_type_display}
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${model.is_enabled ? 'checked' : ''} 
+                                       onchange="toggleModelDetection(${model.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="detection-description">
+                            Current model: <strong>${model.model_source_display}</strong>
+                            ${!model.has_model_file ? '<br><span style="color: #ff5722;">⚠ Model file not found</span>' : ''}
+                        </div>
+                        
+                        <div class="detection-options" style="margin-top: 10px;">
+                            <select class="settings-select" onchange="switchModelSource(${model.id}, this.value)" 
+                                    style="width: 100%; margin-bottom: 10px;">
+                                <option value="default" ${model.model_source === 'default' ? 'selected' : ''}>
+                                    Use Default Model
+                                </option>
+                                <option value="uploaded" ${model.model_source === 'uploaded' ? 'selected' : ''}>
+                                    Use Uploaded Model ${model.model_source === 'uploaded' && !model.has_model_file ? '(Not Available)' : ''}
+                                </option>
+                            </select>
+                            
+                            <button class="settings-action-btn" onclick="openModelUpload(${model.id}, '${model.model_type}')" 
+                                    style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; 
+                                           color: #f5f5f5; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                <i class="bi bi-upload"></i> Upload Custom Model (.onnx)
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <div class="confidence-value">
+                                Confidence Threshold: <span id="confidence-${model.id}">${confidencePercent}%</span>
+                            </div>
+                            <input type="range" class="confidence-slider" min="10" max="99" value="${confidencePercent}" 
+                                   oninput="updateModelConfidence(${model.id}, this.value)">
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div style="margin-top: 20px; padding: 15px; background: #1a1a1a; border-radius: 8px;">
+                        <div style="font-weight: 600; margin-bottom: 10px; color: #f5f5f5;">
+                            <i class="bi bi-info-circle"></i> Model Information
+                        </div>
+                        <p style="font-size: 11px; color: #999; line-height: 1.6; margin: 0;">
+                            • Default models are pre-trained ONNX models<br>
+                            • Upload custom .onnx models for better accuracy<br>
+                            • Detections appear as bounding boxes on camera feeds<br>
+                            • All detections are logged in the database
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Toggle model detection on/off
+        function toggleModelDetection(modelId, isEnabled) {
+            fetch(`/ai/models/${EVENT_ID}/${modelId}/toggle/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ is_enabled: isEnabled })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Success', data.message, 'success');
+                    loadAIModels();
+                    // Detection will automatically appear on feeds in 1-2 seconds
+                    console.log('Model toggled, detections will appear automatically');
+                } else {
+                    showNotification('Error', data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling model:', error);
+                showNotification('Error', 'Failed to toggle model', 'error');
+            });
+        }
+
+        // Switch between default and uploaded model
+        function switchModelSource(modelId, source) {
+            fetch(`/ai/models/${EVENT_ID}/${modelId}/switch/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ source: source })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Success', data.message, 'success');
+                    loadAIModels();
+                } else {
+                    showNotification('Error', data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error switching model:', error);
+                showNotification('Error', 'Failed to switch model source', 'error');
+            });
+        }
+
+        // Update confidence threshold
+        function updateModelConfidence(modelId, value) {
+            const confidence = parseInt(value) / 100;
+            document.getElementById(`confidence-${modelId}`).textContent = value + '%';
+            
+            // Debounce the API call
+            clearTimeout(window.confidenceTimeout);
+            window.confidenceTimeout = setTimeout(() => {
+                fetch(`/ai/models/${EVENT_ID}/${modelId}/confidence/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ confidence: confidence })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        showNotification('Error', data.error, 'error');
+                    }
+                })
+                .catch(error => console.error('Error updating confidence:', error));
+            }, 500);
+        }
+
+        // Open model upload dialog
+        function openModelUpload(modelId, modelType) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.onnx';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    uploadModelFile(modelId, modelType, file);
+                }
+            };
+            input.click();
+        }
+
+        // Upload model file
+        function uploadModelFile(modelId, modelType, file) {
+            if (!file.name.endsWith('.onnx')) {
+                showNotification('Error', 'Only .onnx files are supported', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('model_file', file);
+            formData.append('model_type', modelType);
+
+            showNotification('Uploading', `Uploading ${file.name}...`, 'info');
+
+            fetch(`/ai/models/${EVENT_ID}/upload/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Success', data.message, 'success');
+                    loadAIModels();
+                } else {
+                    showNotification('Error', data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading model:', error);
+                showNotification('Error', 'Failed to upload model', 'error');
+            });
+        }
+
+        // Load detection logs
+        function loadDetectionLogs(limit = 50) {
+            fetch(`/ai/logs/${EVENT_ID}/?limit=${limit}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Detection logs:', data.logs);
+                        // You can display these in a modal or panel
+                    }
+                })
+                .catch(error => console.error('Error loading logs:', error));
+        }
+
+        // Load detection statistics
+        function loadDetectionStats() {
+            fetch(`/ai/stats/${EVENT_ID}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Detection stats:', data.stats);
+                        // Update UI with stats
+                        updateDetectionCounts(data.stats);
+                    }
+                })
+                .catch(error => console.error('Error loading stats:', error));
+        }
+
+        // Update detection counts in UI
+        function updateDetectionCounts(stats) {
+            activeDetections = Object.values(stats).reduce((a, b) => a + b, 0);
+            updateAIStatus();
+        }
+
+        // Refresh detection stats periodically
+        setInterval(loadDetectionStats, 30000); // Every 30 seconds
+
+        // ========================================
+        // FACE RECOGNITION FUNCTIONS
+        // ========================================
+        
+        // Manual modal opener (for debugging)
+        function openFaceModal() {
+            console.log('Opening face modal...');
+            const modal = document.getElementById('faceUploadModal');
+            if (!modal) {
+                console.error('Face modal element not found!');
+                return;
+            }
+            
+            try {
+                // Check if Bootstrap is loaded
+                if (typeof bootstrap === 'undefined') {
+                    console.error('Bootstrap is not loaded!');
+                    alert('Bootstrap library not loaded. Please refresh the page.');
+                    return;
+                }
+                
+                // Get or create Bootstrap modal instance
+                let bsModal = bootstrap.Modal.getInstance(modal);
+                if (!bsModal) {
+                    bsModal = new bootstrap.Modal(modal, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
+                }
+                
+                console.log('Showing face modal...');
+                bsModal.show();
+                
+                // Force visibility after a tiny delay
+                setTimeout(() => {
+                    modal.style.display = 'block';
+                    modal.classList.add('show');
+                    document.body.classList.add('modal-open');
+                }, 50);
+                
+            } catch (error) {
+                console.error('Error opening face modal:', error);
+                alert('Error opening modal: ' + error.message);
+            }
+        }
+        
+        function openObjectModal() {
+            console.log('Opening object modal...');
+            const modal = document.getElementById('objectUploadModal');
+            if (!modal) {
+                console.error('Object modal element not found!');
+                return;
+            }
+            
+            try {
+                // Check if Bootstrap is loaded
+                if (typeof bootstrap === 'undefined') {
+                    console.error('Bootstrap is not loaded!');
+                    alert('Bootstrap library not loaded. Please refresh the page.');
+                    return;
+                }
+                
+                // Get or create Bootstrap modal instance
+                let bsModal = bootstrap.Modal.getInstance(modal);
+                if (!bsModal) {
+                    bsModal = new bootstrap.Modal(modal, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
+                }
+                
+                console.log('Showing object modal...');
+                bsModal.show();
+                
+                // Force visibility after a tiny delay
+                setTimeout(() => {
+                    modal.style.display = 'block';
+                    modal.classList.add('show');
+                    document.body.classList.add('modal-open');
+                }, 50);
+                
+            } catch (error) {
+                console.error('Error opening object modal:', error);
+                alert('Error opening modal: ' + error.message);
+            }
+        }
+
+        function uploadFaceModel() {
+            const fileInput = document.getElementById('faceModelFile');
+            const modelName = document.getElementById('faceModelName').value;
+            
+            if (!fileInput.files.length || !modelName) {
+                showNotification('Error', 'Please enter model name and select a file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('model_file', fileInput.files[0]);
+            formData.append('model_name', modelName);
+            
+            fetch(`/face/upload-model/${EVENT_ID}/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', 'Face model uploaded!', 'success');
+                    document.getElementById('faceModelName').value = '';
+                    fileInput.value = '';
+                    loadFaceModels();
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(err => showNotification('Error', 'Upload failed', 'error'));
+        }
+
+        function addFaceToDatabase() {
+            const fileInput = document.getElementById('faceImageFile');
+            const personName = document.getElementById('personName').value;
+            
+            if (!fileInput.files.length || !personName) {
+                showNotification('Error', 'Please enter person name and select an image', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('face_image', fileInput.files[0]);
+            formData.append('person_name', personName);
+            
+            fetch(`/face/add-to-database/${EVENT_ID}/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', `Face for ${personName} added!`, 'success');
+                    document.getElementById('personName').value = '';
+                    fileInput.value = '';
+                    loadFaceDatabase();
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(err => showNotification('Error', 'Upload failed', 'error'));
+        }
+
+        function loadFaceModels() {
+            fetch(`/face/models/${EVENT_ID}/`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('faceModelsList');
+                    if (data.models.length === 0) {
+                        container.innerHTML = '<p style="color: #888;">No models uploaded</p>';
+                        return;
+                    }
+                    container.innerHTML = data.models.map(m => `
+                        <div style="background: #222; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #f5f5f5; font-weight: 600;">${m.model_name}</span>
+                                <button class="control-icon" onclick="deleteFaceModel(${m.id})" style="width: 28px; height: 28px; font-size: 12px;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <small style="color: #888;">Created: ${new Date(m.created_at).toLocaleDateString()}</small>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function loadFaceDatabase() {
+            fetch(`/face/database/${EVENT_ID}/`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('facesDatabaseList');
+                    if (data.faces.length === 0) {
+                        container.innerHTML = '<p style="color: #888;">No faces registered</p>';
+                        return;
+                    }
+                    container.innerHTML = data.faces.map(f => `
+                        <div style="background: #222; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #f5f5f5; font-weight: 600;">${f.person_name}</span>
+                                <button class="control-icon" onclick="deleteFaceFromDatabase(${f.id})" style="width: 28px; height: 28px; font-size: 12px;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function deleteFaceModel(modelId) {
+            fetch(`/face/delete-model/${modelId}/`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Success', 'Model deleted', 'success');
+                        loadFaceModels();
+                    }
+                });
+        }
+
+        function deleteFaceFromDatabase(faceId) {
+            fetch(`/face/delete-from-database/${faceId}/`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Success', 'Face deleted', 'success');
+                        loadFaceDatabase();
+                    }
+                });
+        }
+
+        // ========================================
+        // FACE UPLOAD MODAL FUNCTIONS
+        // ========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Face image preview
+            const faceImagesInput = document.getElementById('modalFaceImages');
+            const facePreviewContainer = document.getElementById('imagePreviewContainer');
+            
+            if (faceImagesInput) {
+                faceImagesInput.addEventListener('change', function(e) {
+                    const files = Array.from(e.target.files);
+                    if (files.length === 0) {
+                        facePreviewContainer.innerHTML = '<p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>';
+                        return;
+                    }
+                    
+                    facePreviewContainer.innerHTML = '';
+                    files.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            img.style.cssText = 'width: 100%; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid #444; cursor: pointer;';
+                            img.title = file.name;
+                            img.onclick = function() { expandImagePreview(event.target.result, file.name); };
+                            facePreviewContainer.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                });
+            }
+
+            // Object image preview
+            const objectImagesInput = document.getElementById('modalObjectImages');
+            const objectPreviewContainer = document.getElementById('objectImagePreviewContainer');
+            
+            if (objectImagesInput) {
+                objectImagesInput.addEventListener('change', function(e) {
+                    const files = Array.from(e.target.files);
+                    if (files.length === 0) {
+                        objectPreviewContainer.innerHTML = '<p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>';
+                        return;
+                    }
+                    
+                    objectPreviewContainer.innerHTML = '';
+                    files.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            img.style.cssText = 'width: 100%; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid #444; cursor: pointer;';
+                            img.title = file.name;
+                            img.onclick = function() { expandImagePreview(event.target.result, file.name); };
+                            objectPreviewContainer.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                });
+            }
+        });
+
+        function submitFaceUpload() {
+            const personName = document.getElementById('modalPersonName').value.trim();
+            const faceImagesInput = document.getElementById('modalFaceImages');
+            const files = Array.from(faceImagesInput.files);
+            
+            if (!personName) {
+                showNotification('Error', 'Please enter person name', 'error');
+                return;
+            }
+            
+            if (files.length === 0) {
+                showNotification('Error', 'Please select at least one image', 'error');
+                return;
+            }
+            
+            showNotification('Uploading', `Uploading ${files.length} face image(s) for ${personName}...`, 'info');
+            
+            let successCount = 0;
+            let totalCount = files.length;
+            
+            files.forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('face_image', file);
+                formData.append('person_name', personName);
+                
+                fetch(`/face/add-to-database/${EVENT_ID}/`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        successCount++;
+                    }
+                    
+                    // After all uploads complete
+                    if (successCount + (totalCount - successCount) === totalCount) {
+                        closeNotification();
+                        showNotification('Success', `${successCount} out of ${totalCount} images uploaded for ${personName}`, 'success');
+                        
+                        // Clear form and close modal
+                        document.getElementById('modalPersonName').value = '';
+                        faceImagesInput.value = '';
+                        document.getElementById('imagePreviewContainer').innerHTML = '<p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>';
+                        bootstrap.Modal.getInstance(document.getElementById('faceUploadModal')).hide();
+                        
+                        loadFaceDatabase();
+                        setTimeout(closeNotification, 2000);
+                    }
+                })
+                .catch(err => {
+                    console.error('Upload error:', err);
+                });
+            });
+        }
+
+        // ========================================
+        // OBJECT UPLOAD MODAL FUNCTIONS
+        // ========================================
+        function submitObjectUpload() {
+            const objectLabel = document.getElementById('modalObjectLabel').value.trim();
+            const objectName = document.getElementById('modalObjectName').value.trim() || 'Unlabeled Dataset';
+            const objectImagesInput = document.getElementById('modalObjectImages');
+            const files = Array.from(objectImagesInput.files);
+            
+            if (!objectLabel) {
+                showNotification('Error', 'Please enter object label/class', 'error');
+                return;
+            }
+            
+            if (files.length === 0) {
+                showNotification('Error', 'Please select at least one image', 'error');
+                return;
+            }
+            
+            showNotification('Uploading', `Uploading ${files.length} object image(s) for "${objectLabel}"...`, 'info');
+            
+            let successCount = 0;
+            let totalCount = files.length;
+            
+            files.forEach((file) => {
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('label', objectLabel);
+                formData.append('dataset_name', objectName);
+                
+                fetch(`/object/upload-training-image/${EVENT_ID}/`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        successCount++;
+                    }
+                    
+                    // After all uploads complete
+                    if (successCount + (totalCount - successCount) === totalCount) {
+                        closeNotification();
+                        showNotification('Success', `${successCount} out of ${totalCount} images uploaded for class "${objectLabel}"`, 'success');
+                        
+                        // Clear form and close modal
+                        document.getElementById('modalObjectLabel').value = '';
+                        document.getElementById('modalObjectName').value = '';
+                        objectImagesInput.value = '';
+                        document.getElementById('objectImagePreviewContainer').innerHTML = '<p style="grid-column: 1/-1; color: #888; text-align: center;">Select images to preview</p>';
+                        bootstrap.Modal.getInstance(document.getElementById('objectUploadModal')).hide();
+                        
+                        setTimeout(closeNotification, 2000);
+                    }
+                })
+                .catch(err => console.error('Upload error:', err));
+            });
+        }
+
+        function expandImagePreview(imageSrc, fileName) {
+            const overlay = document.getElementById('fullscreenOverlay');
+            const imgEl = document.getElementById('fullscreenFeedImage');
+            const nameEl = document.getElementById('fullscreenCameraName');
+            
+            nameEl.textContent = fileName;
+            imgEl.src = imageSrc;
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function detectFaces() {
+            const fileInput = document.getElementById('faceDetectImageFile');
+            if (!fileInput.files.length) {
+                showNotification('Error', 'Please select an image', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            fetch(`/face/detect-image/${EVENT_ID}/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', `Found ${data.count} face(s)!`, 'success');
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(err => showNotification('Error', 'Detection failed', 'error'));
+        }
+
+        // ========================================
+        // OBJECT DETECTION FUNCTIONS
+        // ========================================
+
+        function uploadObjectModel() {
+            const fileInput = document.getElementById('objectModelFile');
+            const modelName = document.getElementById('objectModelName').value;
+            const objectTypes = document.getElementById('objectTypes').value;
+            
+            if (!fileInput.files.length || !modelName) {
+                showNotification('Error', 'Please enter model name and select a file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('model_file', fileInput.files[0]);
+            formData.append('model_name', modelName);
+            formData.append('object_types', JSON.stringify(objectTypes.split(',').map(t => t.trim())));
+            
+            fetch(`/object/upload-model/${EVENT_ID}/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', 'Object model uploaded!', 'success');
+                    document.getElementById('objectModelName').value = '';
+                    document.getElementById('objectTypes').value = '';
+                    fileInput.value = '';
+                    loadObjectModels();
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(err => showNotification('Error', 'Upload failed', 'error'));
+        }
+
+        function loadObjectModels() {
+            fetch(`/object/models/${EVENT_ID}/`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('objectModelsList');
+                    if (data.models.length === 0) {
+                        container.innerHTML = '<p style="color: #888;">No models uploaded</p>';
+                        return;
+                    }
+                    container.innerHTML = data.models.map(m => `
+                        <div style="background: #222; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #f5f5f5; font-weight: 600;">${m.model_name}</span>
+                                <button class="control-icon" onclick="deleteObjectModel(${m.id})" style="width: 28px; height: 28px; font-size: 12px;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <small style="color: #888;">Objects: ${m.object_types.join(', ')}</small>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function deleteObjectModel(modelId) {
+            fetch(`/object/delete-model/${modelId}/`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Success', 'Model deleted', 'success');
+                        loadObjectModels();
+                    }
+                });
+        }
+
+        function detectObjects() {
+            const fileInput = document.getElementById('objectDetectImageFile');
+            if (!fileInput.files.length) {
+                showNotification('Error', 'Please select an image', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            fetch(`/object/detect-image/${EVENT_ID}/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Success', `Found ${data.count} object(s)!`, 'success');
+                } else {
+                    showNotification('Error', data.message, 'error');
+                }
+            })
+            .catch(err => showNotification('Error', 'Detection failed', 'error'));
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFaceModels();
+            loadFaceDatabase();
+            loadObjectModels();
+            loadFaceRecognitionStatus();
+            loadDetectionLogs();
+            
+            // Refresh logs every 10 seconds
+            setInterval(loadDetectionLogs, 10000);
+            
+            // Debug: Check if modals exist
+            console.log('Face modal exists:', !!document.getElementById('faceUploadModal'));
+            console.log('Object modal exists:', !!document.getElementById('objectUploadModal'));
+            console.log('Bootstrap loaded:', typeof bootstrap !== 'undefined');
+        });
+
+        // ========================================
+        // DETECTION LOGS FUNCTIONS
+        // ========================================
+        let currentLogsFilter = 'all';
+        let currentLogsPage = 1;
+        let logsPageSize = 20;
+
+        function toggleLogsSidebar() {
+            const sidebar = document.getElementById('logsSidebar');
+            sidebar.classList.toggle('active');
+            
+            if (sidebar.classList.contains('active')) {
+                loadDetectionLogs();
+            }
+        }
+
+        function filterLogs(type) {
+            currentLogsFilter = type;
+            currentLogsPage = 1;
+            
+            // Update filter button styles
+            document.querySelectorAll('.logs-filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.type === type) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            loadDetectionLogs();
+        }
+
+        function loadDetectionLogs() {
+            let url = `/logs/${EVENT_ID}/?page=${currentLogsPage}&page_size=${logsPageSize}`;
+            if (currentLogsFilter !== 'all') {
+                url += `&type=${currentLogsFilter}`;
+            }
+            
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayLogs(data.logs);
+                        
+                        // Update badge
+                        const badge = document.getElementById('logsBadge');
+                        if (data.total > 0) {
+                            badge.textContent = data.total;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(err => console.error('Failed to load logs:', err));
+        }
+
+        function displayLogs(logs) {
+            const container = document.getElementById('logsContainer');
+            
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="logs-empty">
+                        <i class="bi bi-inbox"></i>
+                        <p>No detection logs yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => `
+                <div class="log-card">
+                    <div class="log-card-header">
+                        <span class="log-type-badge ${log.detection_type}">${log.detection_type.toUpperCase()}</span>
+                        <span class="log-time">${log.time_ago}</span>
+                    </div>
+                    
+                    ${log.frame_snapshot ? `<img src="${log.frame_snapshot}" alt="Detection Snapshot" class="log-snapshot">` : ''}
+                    
+                    <div class="log-details">
+                        <div class="log-label">${log.detected_label}</div>
+                        <div class="log-info">
+                            <span>Camera: ${log.camera_id}</span>
+                            ${log.confidence_score ? `<span>Confidence: ${(log.confidence_score * 100).toFixed(1)}%</span>` : ''}
+                        </div>
+                    </div>
+                    
+                    <button class="log-delete-btn" onclick="deleteLog(${log.id})">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteLog(logId) {
+            if (!confirm('Delete this log entry?')) return;
+            
+            fetch(`/logs/delete/${logId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Success', 'Log deleted', 'success');
+                        loadDetectionLogs();
+                    } else {
+                        showNotification('Error', data.message, 'error');
+                    }
+                })
+                .catch(err => showNotification('Error', 'Failed to delete log', 'error'));
+        }
+
+        function clearAllLogs() {
+            if (!confirm('Clear all detection logs? This cannot be undone.')) return;
+            
+            fetch(`/logs/clear/${EVENT_ID}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Success', data.message, 'success');
+                        loadDetectionLogs();
+                    } else {
+                        showNotification('Error', data.message, 'error');
+                    }
+                })
+                .catch(err => showNotification('Error', 'Failed to clear logs', 'error'));
+        }
+
+        function showReportModal() {
+            // Delegate clicks for camera controls (robust binding in case inline handlers fail)
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const camId = btn.dataset.cameraId;
+                if (action === 'remove' && camId) {
+                    try { removeCamera(parseInt(camId, 10)); } catch (err) { console.error(err); }
+                } else if (action === 'pin' && camId) {
+                    try { pinCamera(parseInt(camId, 10)); } catch (err) { console.error(err); }
+                } else if (action === 'expand') {
+                    const feedUrl = btn.dataset.feedUrl;
+                    const name = btn.dataset.cameraName || '';
+                    try { expandFeed(name, feedUrl); } catch (err) { console.error(err); }
+                }
+            });
+            fetch(`/logs/report/${EVENT_ID}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const report = data.report;
+                        
+                        let reportHTML = `
+                            <div style="background: #1a1a1a; padding: 20px; border-radius: 10px; color: #e0e0e0;">
+                                <h3 style="color: #f5f5f5; margin-bottom: 20px;">Detection Report</h3>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <h5 style="color: #f5f5f5;">Event: ${report.event_name}</h5>
+                                    <p style="color: #888;">Location: ${report.event_location}</p>
+                                </div>
+                                
+                                <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h5 style="color: #f5f5f5; margin-bottom: 10px;">Total Detections: ${report.total_detections}</h5>
+                                </div>
+                                
+                                <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h6 style="color: #f5f5f5; margin-bottom: 10px;">By Detection Type:</h6>
+                                    ${report.by_type.map(t => `
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>${t.detection_type}</span>
+                                            <span style="font-weight: 600;">${t.count}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h6 style="color: #f5f5f5; margin-bottom: 10px;">Top Detected Labels:</h6>
+                                    ${report.by_label.map(l => `
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>${l.detected_label}</span>
+                                            <span style="font-weight: 600;">${l.count}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h6 style="color: #f5f5f5; margin-bottom: 10px;">By Camera:</h6>
+                                    ${report.by_camera.map(c => `
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <span>Camera ${c.camera_id}</span>
+                                            <span style="font-weight: 600;">${c.count}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div style="background: #222; padding: 15px; border-radius: 8px;">
+                                    <h6 style="color: #f5f5f5; margin-bottom: 10px;">Recent Detections:</h6>
+                                    ${report.recent_detections.map(d => `
+                                        <div style="margin-bottom: 8px; padding: 8px; background: #1a1a1a; border-radius: 4px;">
+                                            <div style="font-weight: 600;">${d.detected_label}</div>
+                                            <div style="font-size: 12px; color: #888;">${d.detection_type} • ${d.created_at}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                        
+                        showNotification('Detection Report', reportHTML, 'info');
+                    } else {
+                        showNotification('Error', data.message, 'error');
+                    }
+                })
+                .catch(err => showNotification('Error', 'Failed to generate report', 'error'));
+        }
+    </script>
+</body>
+</html>

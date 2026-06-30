@@ -1,0 +1,524 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIH 2025 - Intel Spectra</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            position: relative;
+            min-height: 100vh;
+            color: #e0e0e0;
+            font-family: "Poppins", sans-serif;
+            /* fallback background color while image loads */
+            background-color: #0b0f14;
+        }
+
+        /* Full-screen blurred background layer */
+        body::before {
+            content: "";
+            position: fixed; /* cover viewport even if content scrolls */
+            inset: 0;
+            background: url("{% static 'images/nsg_bg.png' %}") no-repeat center center/cover;
+            background-size: cover;
+            filter: blur(5px) brightness(0.6);
+            transform: scale(1.06);
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        /* Dark overlay above the image to keep text readable */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55));
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .navbar {
+            background: #000;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-logo {
+            height: 40px;
+            margin-right: 15px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            background: #222;
+            border-color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+
+        .event-title {
+            font-size: 20px;
+            font-weight: 600;
+            color:white;
+        }
+
+        .event-description {
+            font-size: 14px;
+            color: #b1b1b1;
+            margin-top: 5px;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .event-location {
+            font-size: 13px;
+            color: #ffffff;
+            margin-top: 3px;
+        }
+
+        .btn-create {
+            background: #f5f5f5;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 600;
+            border-radius: 6px;
+            color: #000;
+        }
+
+        .btn-create:hover {
+            background: #e0e0e0;
+        }
+
+        .dots-btn {
+            background: transparent;
+            border: none;
+            color: #ccc;
+        }
+
+        .dropdown-menu {
+            background: #1a1a1a;
+            border: 1px solid #333;
+        }
+
+        .dropdown-item {
+            color: #ccc;
+        }
+
+        .dropdown-item:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .btn-floating {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 50%;
+            font-size: 30px;
+            color: #000;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .btn-floating:hover {
+            background: #fff;
+            box-shadow: 0 6px 16px rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #333;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #333;
+        }
+
+        .form-control, .form-select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: #2a2a2a;
+            border-color: #f5f5f5;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.15);
+        }
+
+        .form-label {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .btn-secondary {
+            background: #444;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FFD24A, #E07A00);
+            border: none;
+            color: #000;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.02);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar px-3">
+        <div class="navbar-left">
+            <img src="{% static 'images/team_logo.png' %}" alt="Team Logo" class="navbar-logo">
+            <span class="h5 mb-0 text-light">INTEL SPECTRA  |  NSG INDIA</span>
+        </div>
+
+        <div class="navbar-right">
+            <a href="/archive-scanner/" class="btn btn-outline-light btn-sm me-3" title="Scan archived video">Archive Scanner</a>
+            <!-- Logout button -->
+            <button id="logoutBtn" class="btn btn-outline-light btn-sm ms-3" title="Logout">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h3 class="mb-0">Security Operations & Events</h3>
+                <small>National Security Guard</small>
+            </div>
+
+            <div class="d-flex align-items-center" style="gap:12px;">
+                <input id="eventSearch" type="search" class="form-control" placeholder="Search events by title, description or location" style="max-width:420px;" />
+                <button id="clearSearch" class="btn btn-secondary" title="Clear search">✕</button>
+            </div>
+        </div>
+
+        <!-- Event List -->
+        <div id="eventList">
+
+            <!-- Example Event -->
+            {% for event in events %}
+            <div class="card d-flex justify-content-between align-items-center flex-row" onclick="goToEvent(event, '{{ event.id }}')">
+                <div style="flex: 1;">
+                    <div class="event-title">{{ event.event_name }}</div>
+                    <div class="event-description">{{ event.event_description }}</div>
+                    <div class="event-location"><i class="bi bi-geo-alt"></i> {{ event.event_location }}</div>
+                    <small class="text-muted">{{ event.get_event_type_display }}</small>
+                </div>
+
+                <!-- 3 dot menu -->
+                <div class="dropdown">
+                    <button class="dots-btn" data-bs-toggle="dropdown" onclick="event.stopPropagation()">
+                        <i class="bi bi-three-dots-vertical fs-4"></i>
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="event.stopPropagation(); openEditModal('{{ event.id }}', '{{ event.event_name|escapejs }}', '{{ event.event_description|escapejs }}', '{{ event.event_location|escapejs }}', '{{ event.event_type }}')">Edit Event</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="event.stopPropagation(); openDeleteModal('{{ event.id }}', '{{ event.event_name|escapejs }}')">Delete</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="event.stopPropagation(); generateReport('{{ event.event_name }}')">Generate Report</a></li>
+                    </ul>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="bi bi-folder2-open" style="font-size: 48px;"></i>
+                <p class="mt-3">No events yet. Create your first security operation!</p>
+            </div>
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    <!-- Floating Create Button -->
+    <button class="btn-floating" data-bs-toggle="modal" data-bs-target="#createEventModal">+</button>
+
+    <!-- Create Event Modal -->
+    <div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createEventModalLabel">Create Security Operation Event</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{% url 'home' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="eventTitle" class="form-label">Operation/Event Title</label>
+                            <input type="text" class="form-control" id="eventTitle" name="title" placeholder="Enter operation or event title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="eventDescription" class="form-label">Operation Description</label>
+                            <textarea class="form-control" id="eventDescription" name="description" rows="3" placeholder="Enter detailed description of the operation" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="eventLocation" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="eventLocation" name="location" placeholder="Enter event location" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="eventType" class="form-label">Environment Type</label>
+                            <select class="form-select" id="eventType" name="event_type" required>
+                                <option value="" selected disabled>Select environment type</option>
+                                <option value="Indoor">Indoor Operations</option>
+                                <option value="Outdoor">Outdoor Operations</option>
+                                <option value="Hybrid">Hybrid Operations</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Event</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Event Modal -->
+    <div class="modal fade" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editEventModalLabel">Edit Security Operation Event</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" id="editEventForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editEventTitle" class="form-label">Operation/Event Title</label>
+                            <input type="text" class="form-control" id="editEventTitle" name="title" placeholder="Enter operation or event title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEventDescription" class="form-label">Operation Description</label>
+                            <textarea class="form-control" id="editEventDescription" name="description" rows="3" placeholder="Enter detailed description of the operation" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEventLocation" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="editEventLocation" name="location" placeholder="Enter event location" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEventType" class="form-label">Environment Type</label>
+                            <select class="form-select" id="editEventType" name="event_type" required>
+                                <option value="">Select environment type</option>
+                                <option value="Indoor">Indoor Operations</option>
+                                <option value="Outdoor">Outdoor Operations</option>
+                                <option value="Hybrid">Hybrid Operations</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Event</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteEventModal" tabindex="-1" aria-labelledby="deleteEventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteEventModalLabel">Confirm Delete</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the event "<span id="deleteEventName"></span>"?</p>
+                    <p class="text-muted">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST" id="deleteEventForm" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete Event</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Live search for events: filters #eventList .card by title/description/location
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('eventSearch');
+            const clearBtn = document.getElementById('clearSearch');
+            const list = document.getElementById('eventList');
+            if (!input || !list) return;
+
+            function normalize(s) { return (s||'').toString().toLowerCase(); }
+
+            function filterEvents() {
+                const q = normalize(input.value).trim();
+                const cards = list.querySelectorAll('.card');
+                if (!q) {
+                    cards.forEach(c => c.style.display = 'flex');
+                    return;
+                }
+
+                cards.forEach(card => {
+                    const title = normalize(card.querySelector('.event-title')?.textContent);
+                    const desc = normalize(card.querySelector('.event-description')?.textContent);
+                    const loc = normalize(card.querySelector('.event-location')?.textContent);
+                    const hay = `${title} ${desc} ${loc}`;
+                    card.style.display = hay.indexOf(q) !== -1 ? 'flex' : 'none';
+                });
+            }
+
+            // simple debounce
+            let t;
+            input.addEventListener('input', function() {
+                clearTimeout(t);
+                t = setTimeout(filterEvents, 150);
+            });
+
+            clearBtn.addEventListener('click', function() {
+                input.value = '';
+                filterEvents();
+                input.focus();
+            });
+        });
+
+        function goToEvent(e, eventId) {
+            // Navigate to event page with event ID
+            window.location.href = `/event/${eventId}/`;
+        }
+
+        function openEditModal(eventId, title, description, location, eventType) {
+            // Populate form fields
+            document.getElementById('editEventTitle').value = title;
+            document.getElementById('editEventDescription').value = description;
+            document.getElementById('editEventLocation').value = location;
+            document.getElementById('editEventType').value = eventType;
+            
+            // Set form action
+            document.getElementById('editEventForm').action = `/edit/${eventId}/`;
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editEventModal')).show();
+        }
+
+        function openDeleteModal(eventId, eventName) {
+            // Set event name in modal
+            document.getElementById('deleteEventName').textContent = eventName;
+            
+            // Set form action
+            document.getElementById('deleteEventForm').action = `/delete/${eventId}/`;
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('deleteEventModal')).show();
+        }
+
+        function generateReport(title) {
+            alert("Report generated for: " + title);
+        }
+        
+        // Helper to read cookie value (used for CSRF)
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // Logout button handler: sends POST to /logout/ with CSRF token
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('logoutBtn');
+            if (!btn) return;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const csrftoken = getCookie('csrftoken');
+                fetch('/logout/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken || ''
+                    }
+                })
+                .then(r => r.json().then(b => ({status: r.status, body: b})))
+                .then(({status, body}) => {
+                    // On success redirect to login
+                    if (status >= 200 && status < 300 && body.status === 'success') {
+                        window.location.href = body.redirect || '/login/';
+                    } else {
+                        // fallback: always redirect to login
+                        window.location.href = '/login/';
+                    }
+                })
+                .catch(err => {
+                    // On network error, still redirect to login page
+                    window.location.href = '/login/';
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
